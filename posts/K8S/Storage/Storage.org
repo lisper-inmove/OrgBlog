@@ -1,0 +1,138 @@
+#+TITLE: Storage
+#+DATE: 2023-09-28 15:33:33
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: Kubernetes PV PVC SC
+#+CATEGORIES: Kubernetes
+
+* EmptyDir
+
+Pod里的临时结点。与Pod拥有同样的生命周期。
+
+#+begin_src yaml
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: my-pod
+  spec:
+    containers:
+    - name: container1
+      image: nginx
+      volumeMounts:
+      - name: my-emptydir
+        mountPath: /usr/share/nginx/html
+    - name: container2
+      image: busybox
+      volumeMounts:
+      - name: my-emptydir
+        mountPath: /data
+      command: ["sh", "-c", "echo Hello, Kubernetes! > /data/index.html"]
+    volumes:
+    - name: my-emptydir
+      emptyDir: {}
+#+end_src
+
+* HostPath
+
+当 Pod 退出或被删除时，hostPath 指向的宿主机上的目录或文件不会被删除。在某些场景下也是很有用的，比如与静态Pod结合使用。
+
+#+begin_src yaml
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: my-hostpath-pod
+  spec:
+    containers:
+    - name: my-container
+      image: nginx
+      volumeMounts:
+      - name: my-hostpath-volume
+        mountPath: /data
+    volumes:
+    - name: my-hostpath-volume
+      hostPath:
+        # 路径在宿主机上
+        path: /var/lib/my-data
+
+        # 可选：这将确保在路径不存在的情况下创建目录
+        # 用于指定期望的宿主机上的文件或目录类型
+        # 1. DirectoryOrCreate: 如果在给定路径上没有找到目录，Kubernetes 将自动创建该目录。
+        # 2. Directory: 一个目录必须存在于给定路径上。
+        # 3. FileOrCreate: 如果在给定路径上没有找到文件，Kubernetes 将自动创建一个空文件。
+        # 4. File: 一个文件必须存在于给定路径上。
+        # 5. Socket: 一个 Unix 套接字必须存在于给定路径上。
+        # 6. CharDevice: 一个字符设备必须存在于给定路径上。
+        # 7. BlockDevice: 一个块设备必须存在于给定路径上。
+        # 8. Unset: 这是默认值，表示不对路径执行任何检查。
+        type: DirectoryOrCreate
+#+end_src
+
+* PV 与 PVC
+** PV
+PV是存储资源。PVC则是对存储资源的需求。
+用于管理存储的一种 API 资源。它与Pod的生命周期是独立的，并且与Namespace无关。
+#+begin_src yaml
+  apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    name: my-nfs-pv
+  spec:
+    capacity:
+      storage: 5Gi  # 常用的就是Gi Mi
+
+    # 1. ReadWriteOnce (RWO): 存储卷可以被单个节点以读写模式挂载。这是最常见的模式，适用于大多数单实例数据库和其他需要持久存储的应用。
+    # 2. ReadOnlyMany (ROX): 存储卷可以被多个节点以只读模式挂载。这适用于需要多个实例访问同一数据集但不需要写入的应用，例如静态网站内容。
+    # 3. ReadWriteMany (RWX): 存储卷可以被多个节点以读写模式挂载。这通常需要特定的网络存储解决方案，例如 NFS、CephFS 或特定的云存储。
+    accessModes:
+      - ReadWriteOnce  # 单节点读写
+
+    # 用于定义当关联的PVC被删除时，PV应该如何处理。一共有三个值:
+    # 1. Retain: PV状态变为Released状态，不会被回收也不会被重用。需要管理员手动处理。
+    # 2. Delete: PV将被删除。数据也会被删除。
+    # 3. Recycle: 回收。存储会被清空，PV可以被重新利用。该值已经被弃用，将来也有可能被移除。
+    persistentVolumeReclaimPolicy: Retain  # 保留数据当 PVC 被删除
+    nfs:  # 使用 NFS 类型
+      path: /var/nfs/general  # NFS 服务器上的路径
+      server: 10.0.0.1  # NFS 服务器的 IP 地址
+#+end_src
+** PVC
+**PV与PVC一旦绑定了，就独占了这个PV**
+
+PV与PVC的绑定条件如下:
+1. 容量: PVC 请求的存储容量必须小于或等于PV提供的存储容量。
+2. 访问模式: PVC和PV的访问模式必须匹配。常见的访问模式有 ReadWriteOnce(RWO)，ReadOnlyMany(ROX)和ReadWriteMany(RWX)。
+3. 标签选择器(可选): 如果 PVC 使用了 selector 字段，那么只有具有匹配标签的 PV 会被考虑。
+#+begin_src yaml
+  apiVersion: v1
+  kind: PersistentVolume
+  metadata:
+    name: my-manual-pv
+    labels:
+      type: local
+  spec:
+    capacity:
+      storage: 1Gi
+    accessModes:
+      - ReadWriteOnce
+    hostPath:
+      path: "/mnt/data"
+  ---
+  apiVersion: v1
+  kind: PersistentVolumeClaim
+  metadata:
+    name: my-manual-pvc
+  spec:
+    accessModes:
+      - ReadWriteOnce
+    resources:
+      requests:
+        storage: 1Gi
+    selector:
+      matchLabels:
+        type: local
+#+end_src
+** SC
+像上面说的PV，PVC一个麻烦的地方在于PV需要手动管理。想想我们平时是如何使用硬盘的，如果能像使用硬盘一样使用PV，那就会很方便。
+而Storage Class就是做这个的。SC用于定义一个动态卷供应，当你有一个PVC的时候，它就会动态的创建一个PV，与这个PVC绑定。

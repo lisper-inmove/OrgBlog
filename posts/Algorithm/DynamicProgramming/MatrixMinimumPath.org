@@ -1,0 +1,139 @@
+#+TITLE: 二维方格上最小路径和
+#+DATE: 2023-09-27 19:58:27
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: 动态规划
+#+CATEGORIES: 动态规划 算法
+
+* 二维方格上最小路径和
+#+begin_src python
+  # 给定一个二维数组matrix，
+  # 一个人必须从左上角出发，最后到达右下角沿途只可以向下或者向右走，
+  # 沿途的数字都累加就是距离累加和返回最小距离累加和
+
+  # 1. 二维优化成一维
+  # - 依赖 dp[x][y - 1] 和 dp[x - 1][y]。求下一行时，从左往右
+  # - 依赖 dp[x - 1][y - 1] 和 dp[x - 1][y]。求下一行时，从右往左
+  # - 依赖 dp[x][y - 1] 和 dp[x - 1][y - 1] 和 dp[x - 1][y]。使用一个额外变量保存 dp[x - 1][y - 1]
+
+
+
+  def MinDistance(arr, x, y, a, b):
+      # 越界
+      if x > a or y > b:
+          return float('inf')
+      if x == a and y == b:
+          return arr[a][b]
+      # 向右走
+      rightValue = MinDistance(arr, x, y + 1, a, b)
+      downValue = MinDistance(arr, x + 1, y, a, b)
+      return min(rightValue, downValue) + arr[x][y]
+
+
+  def MinDistanceDP(arr):
+      dp = [[0] * len(arr[0]) for i in range(0, len(arr))]
+      a = len(arr) - 1
+      b = len(arr[0]) - 1
+
+      dp[a][b] = arr[a][b]
+
+      for i in range(len(arr) - 1, -1, -1):
+          for j in range(len(arr[0]) - 1, -1, -1):
+              if i == len(arr) - 1 and j == len(arr[0]) - 1:
+                  continue
+              p1 = float('inf')
+              p2 = float('inf')
+              if j + 1 <= b:
+                  p1 = dp[i][j + 1]
+              if i + 1 <= a:
+                  p2 = dp[i + 1][j]
+              dp[i][j] = min(p1, p2) + arr[i][j]
+      return dp[0][0]
+
+
+  def MinDistance2(arr, x, y):
+      if x < 0 or y < 0:
+          return float('inf')
+      if x == 0 and y == 0:
+          return arr[0][0]
+      p1 = MinDistance2(arr, x - 1, y)
+      p2 = MinDistance2(arr, x, y - 1)
+      return min(p1, p2) + arr[x][y]
+
+
+  def MinDistanceDP2(arr):
+      dp = [[float('inf')] * len(arr[0]) for i in range(0, len(arr))]
+
+      dp[0][0] = arr[0][0]
+
+      for j in range(1, len(arr[0])):
+          dp[0][j] = arr[0][j] + dp[0][j - 1]
+
+      for i in range(1, len(arr)):
+          dp[i][0] = arr[i][0] + dp[i - 1][0]
+
+      for i in range(1, len(arr)):
+          for j in range(1, len(arr[0])):
+              dp[i][j] = arr[i][j] + min(dp[i - 1][j], dp[i][j - 1])
+
+      return dp[len(arr) - 1][len(arr[0]) - 1]
+
+
+  def MinDistanceDP3(arr):
+      """
+      从第一行开始往最后一行更新
+      """
+      dp = [0] * len(arr[0])
+
+      dp[0] = arr[0][0]
+      for j in range(1, len(arr[0])):
+          dp[j] = dp[j - 1] + arr[0][j]
+
+      for i in range(1, len(arr)):
+          dp[0] = dp[0] + arr[i][0]
+          for j in range(1, len(arr[0])):
+              dp[j] = min(dp[j - 1], dp[j]) + arr[i][j]
+      return dp[-1]
+
+
+  def MinDistanceDP4(arr):
+      """
+      从第一列开始往最后一列更新
+      """
+      dp = [0] * len(arr[0])
+
+      dp[0] = arr[0][0]
+      for i in range(1, len(arr)):
+          dp[i] = dp[i - 1] + arr[i][0]
+
+      for j in range(1, len(arr[0])):
+          dp[0] = dp[0] + arr[0][j]
+          for i in range(1, len(arr)):
+              dp[i] = min(dp[i], dp[i - 1]) + arr[i][j]
+      return dp[-1]
+
+
+  if __name__ == '__main__':
+      arr = [
+          [3, 7, 8, 7, 5],
+          [1, 2, 6, 4, 9],
+          [10, 3, 8, 9, 13],
+          [8, 1, 2, 3, 1],
+          [1, 3, 4, 10, 8]
+      ]
+      arr = [
+          [1, 3, 5, 9],
+          [8, 1, 3, 4],
+          [5, 0, 6, 1],
+          [8, 8, 4, 0],
+      ]
+      print(MinDistance(arr, 0, 0, len(arr) - 1, len(arr[0]) - 1))
+      print(MinDistance2(arr, len(arr) - 1, len(arr[0]) - 1))
+
+      print(MinDistanceDP(arr))
+      print(MinDistanceDP2(arr))
+      print(MinDistanceDP3(arr))
+      print(MinDistanceDP4(arr))
+#+end_src

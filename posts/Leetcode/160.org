@@ -1,0 +1,33 @@
+#+TITLE: 160. 相交链表
+#+DATE: 2023-09-28 18:43:15
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: Leetcode 链表
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Easy
+
+* Solution
+
+1. 因为_headA, _headB都是把A和B都循环的了一遍，所以当它们不相交时，最后必定都为None
+2. 如果它们相交的话，有两种情况
+  - 相交前部分是一样的长的。一定在相交点相遇
+  - 相交前部分不一样长。当一开始走长路径的那个指针指向短路径时，它们距离相交点的距离是一样的了。
+
+#+begin_src python
+  from typing import Optional
+
+  class ListNode:
+      def __init__(self, x):
+          self.val = x
+          self.next = None
+
+  class Solution:
+      def getIntersectionNode(self, headA: ListNode, headB: ListNode) -> Optional[ListNode]:
+          _headA, _headB = headA, headB
+          while _headA != _headB:
+              _headA = _headA.next if _headA else headB
+              _headB = _headB.next if _headB else headA
+          return _headA if _headA else None
+#+end_src

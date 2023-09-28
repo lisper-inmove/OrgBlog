@@ -1,0 +1,59 @@
+#+TITLE: 下一个更大元素
+#+DATE: 2023-09-27 22:02:32
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: Leetcode 单调栈
+#+CATEGORIES: Leetcode
+
+* 下一个更大元素I
+
+https://leetcode.cn/problems/next-greater-element-i/description/
+
+#+begin_src python
+  from typing import List
+
+  class Solution:
+      def nextGreaterElement(self, nums1: List[int], nums2: List[int]) -> List[int]:
+          rmax = {}
+          stack = []  # 递增(栈顶是最小的数)
+
+          for i in range(0, len(nums2)):
+              while stack and nums2[stack[-1]] < nums2[i]:
+                  rmax[nums2[stack.pop()]] = nums2[i]
+              stack.append(i)
+          result = []
+          for num in nums1:
+              result.append(rmax.get(num, -1))
+          return result
+#+end_src
+* 下一个更大的元素II
+
+https://leetcode.cn/problems/next-greater-element-ii/
+
+#+begin_src python
+  from typing import List
+
+  class Solution:
+      def nextGreaterElements(self, nums: List[int]) -> List[int]:
+          n = len(nums)
+
+          # 保存的是索引。
+          # 单调递增(栈顶是最小的元素) nums[top] < nums[top - 1]
+          stack = []
+
+          res = [-1] * n
+          for i in range(2 * n):
+
+              # 每一个栈中的元素，只要比当前元素小，那么它的下一个更大的元素便是 nums[i % n]
+              while stack and nums[stack[-1]] < nums[i % n]:
+                  res[stack.pop()] = nums[i % n]
+
+              # 只有i小于n时，才入栈
+              # i小于n时会入栈，当i大于等于n时，数组中所有数都已经入过一次栈了
+              # 这个时候，栈中的所有数是还没有找到比它大的数了
+              if i < n:
+                  stack.append(i)
+          return res
+#+end_src

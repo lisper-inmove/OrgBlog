@@ -1,0 +1,125 @@
+#+TITLE: 剪纸
+#+DATE: 2023-09-27 19:47:59
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: 动态规划
+#+CATEGORIES: 动态规划 算法
+
+* 剪纸
+#+begin_src python
+  # 给定一个字符串str，给定一个字符串类型的数组arr，出现的字符都是小写英文
+  # arr每一个字符串，代表一张贴纸，你可以把单个字符剪开使用，目的是拼出str来返回需要至少多少张贴纸可以完成这个任务。
+  # 例子 : str="babac"，arr = [ba","c","abcd]
+  # 至少需要两张贴纸"ba"和“abcd"因为使用这两张贴纸，把每一个字符单独剪开，含有2个a、2个b、1个c。是可以拼出str的。所以返回2。
+
+  def char_to_index(c):
+      return ord(c) - 97
+
+  def index_to_char(v):
+      return chr(v + 97)
+
+  def minus(sticker, target):
+      letters = [0] * 26
+      for letter in target:
+          letters[char_to_index(letter)] += 1
+      for letter in sticker:
+          letters[char_to_index(letter)] -= 1
+      result = []
+      for index, count in enumerate(letters):
+          if count <= 0:
+              continue
+          result.append("".join([index_to_char(index)] * count))
+      return "".join(result)
+
+
+  def stick(stickers, target):
+      if len(target) == 0:
+          return 0
+      min_sticker = float('inf')
+      for first in stickers:
+          rest = minus(first, target)
+          if len(rest) != len(target):
+              min_sticker = min(stick(stickers, rest), min_sticker)
+      return min_sticker + (0 if min_sticker == float('inf') else 1)
+
+
+  def stick2(stickers, target):
+
+      sticker_map = [[0] * 26 for i in range(0, len(stickers))]
+      for index, sticker in enumerate(stickers):
+          for letter in sticker:
+              sticker_map[index][char_to_index(letter)] += 1
+
+      def process(stickers, target):
+          if len(target) == 0:
+              return 0
+          target_map = [0] * 26
+          for letter in target:
+              target_map[char_to_index(letter)] += 1
+          min_value = float('inf')
+          for sticker in stickers:
+              if sticker[char_to_index(target[0])] > 0:
+                  rest = []
+                  for i in range(0, 26):
+                      if target_map[i] > 0:
+                          rest.append("".join([index_to_char(i)] * (target_map[i] - sticker[i])))
+                  rest = "".join(rest)
+                  min_value = min(min_value, process(stickers, rest))
+          return min_value + (0 if min_value == float('inf') else 1)
+
+      return process(sticker_map, target)
+
+
+  def stick3(stickers, target):
+
+      sticker_map = [[0] * 26 for i in range(0, len(stickers))]
+      for index, sticker in enumerate(stickers):
+          for letter in sticker:
+              sticker_map[index][char_to_index(letter)] += 1
+
+      memo = {}
+
+      def process(stickers, target, memo):
+          if len(target) == 0:
+              return 0
+          if memo.get(target):
+              return memo.get(target)
+          target_map = [0] * 26
+          for letter in target:
+              target_map[char_to_index(letter)] += 1
+          min_value = float('inf')
+          for sticker in stickers:
+              if sticker[char_to_index(target[0])] > 0:
+                  rest = []
+                  for i in range(0, 26):
+                      if target_map[i] > 0:
+                          rest.append("".join([index_to_char(i)] * (target_map[i] - sticker[i])))
+                  rest = "".join(rest)
+                  min_value = min(min_value, process(stickers, rest, memo))
+          min_value += (0 if min_value == float('inf') else 1)
+          memo[target] = min_value
+          return min_value
+
+      return process(sticker_map, target, memo)
+
+
+  import time
+
+  stickers = ['abc', 'aab', 'bck', 'cka', 'abcbbk', 'abca', 'xyz']
+  target = "abkx"
+
+  start = time.time()
+  value = stick(stickers, target)
+  print(f"递归耗时: {value} {time.time() - start}")
+
+  start = time.time()
+  value = stick2(stickers, target)
+  print(f"剪技耗时: {value} {time.time() - start}")
+
+
+  start = time.time()
+  value = stick3(stickers, target)
+  print(f"记忆化搜索耗时: {value} {time.time() - start}")
+#+end_src

@@ -1,0 +1,71 @@
+#+TITLE: 10. 正则表达式匹配
+#+DATE: 2023-09-28 16:47:06
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: Leetcode 动态规划
+#+CATEGORIES: Leetcode 动态规划
+#+DIFFICULTY: Hard
+
+* Solution
+#+begin_src python
+  class Solution:
+
+      def isMatch(self, s: str, p: str) -> bool:
+          if not p:
+              return not s
+
+          firstMatch = bool(s) and p[0] in {s[0], '.'}
+
+          # 当前p的第二个字符是*号时，另x是*号的前一个字符
+          # 因为*可以匹配0个区多个前一个字符，
+          # 1. x* 不匹配任何字符
+          # 2. x* 消耗掉了s[0]
+          if len(p) >= 2 and p[1] == '*':
+              return (self.isMatch(s, p[2:])) or (firstMatch and self.isMatch(s[1:], p))
+          else:
+              # p的第二个字符不是*号，那么只有在p[0] == s[0]时，才有继续下去的必要
+              return firstMatch and self.isMatch(s[1:], p[1:])
+
+      def isMatchDP(self, s: str, p: str) -> bool:
+          # dp[i][j] 表示 s[0..i] 与 p[0..j] 是否匹配
+          n, m = len(s), len(p)
+          dp = [[False] * (m + 1) for i in range(n + 1)]
+
+          # p是空数组时，不匹配任何字符
+          for i in range(0, n + 1):
+              dp[i][0] = False
+
+          # 空字符与空字符匹配
+          dp[0][0] = True
+
+          for i in range(0, n + 1):
+              for j in range(1, m + 1):
+
+                  # 因为 1 <= j <= m + 1
+                  # 所以 p[j - 1] 表示当前字符
+                  # 因为题目中说过，第一个字符不可能是*，所以j=1时，一定不会进到这里来。
+                  # 可以放心的使用j-2
+                  if p[j - 1] == "*":
+
+                      # dp[i][j] = dp[i][j - 2] # 对应于 self.isMatch(s, p[2:])
+                      # dp[[i - 1][j] 对应于 self.isMatch(s[1:], p)
+                      # s[i - 1] == p[j - 2] or p[j - 2] == '.' 对应于 firstMatch
+
+                      dp[i][j] = dp[i][j - 2] or \
+                          (
+                              i > 0 and dp[i - 1][j] and
+                              (s[i - 1] == p[j - 2] or p[j - 2] == '.')
+                           )
+                  else:
+                      # s[i - 1] == p[j - 1] or p[j - 1] == '.' 对应于 firstMatch
+                      # dp[i - 1][j - 1] 对应于 self.isMatch(s[1:], p[1:])
+                      dp[i][j] = i > 0 and \
+                          (
+                              s[i - 1] == p[j - 1] or p[j - 1] == '.'
+                          ) and dp[i - 1][j - 1]
+
+          # 递归是用 s, p调用的，所以是返回 dp[len(s)][len(p)]
+          return dp[len(s)][len(p)]
+#+end_src

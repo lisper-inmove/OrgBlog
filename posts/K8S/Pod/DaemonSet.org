@@ -1,0 +1,58 @@
+#+TITLE: DaemonSet
+#+DATE: 2023-09-28 16:34:14
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: Kubernetes DaemonSet
+#+CATEGORIES: Kubernetes
+
+* 什么是DaemonSet
+DaemonSet是一种特殊的Pod。创建一个DaemonSet时，它会确保每个Node节点都会有这样的一个Pod，新增的节点也会新增这样的一个Pod。
+
+DaemonSet多用于节点监控，日志收集等功能。
+
+* Fluented
+#+begin_src yaml
+  apiVersion: apps/v1
+  kind: DaemonSet
+  metadata:
+    name: fluentd-cloud-logging
+    namespace: kube-system
+    labels:
+      k8s-app: fluentd-cloud-logging
+  spec:
+    selector:
+      matchLabels:
+        k8s-app: fluentd-cloud-logging
+    template:
+      metadata:
+        namespace: kube-system
+        labels:
+          k8s-app: fluentd-cloud-logging
+      spec:
+        containers:
+        - name: fluentd-cloud-logging
+          image: registry.cn-hangzhou.aliyuncs.com/google_containers/fluentd-elasticsearch:v2.0.1
+          resources:
+            limits:
+              cpu: 100m
+              memory: 200Mi
+          env:
+          - name: FLUENTED_ARGS
+            value: -q
+          volumeMounts:
+          - name: varlog
+            mountPath: /var/log
+            readOnly: false
+          - name: containers
+            mountPath: /var/lib/docker/containers
+            readOnly: false
+        volumes:
+        - name: containers
+          hostPath:
+            path: /tmp/containers
+        - name: varlog
+          hostPath:
+            path: /tmp/varlog
+#+end_src

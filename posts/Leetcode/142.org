@@ -1,0 +1,77 @@
+#+TITLE: 142. 环形链表II
+#+DATE: 2023-09-28 17:29:28
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: Leetcode 环形链表
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Medium
+
+* Solution
+
+利用快慢指针，每次faster走两步，slower走一步，会出现两种情况
+1. faster变为了None，没有环
+2. faster与slower相遇了，有环
+
+找到环起点的原理:
+假设faster和slower相遇时，slower走了s步，那么faster走了2s步。假设环长为r，表头到入环点长为a(包含入环点)，入环点到相遇点长为b，则有
+1. s = a + b (slower一共走了这么多步)
+2. 2s = a + b + nr (faster有可能绕环走了几圈才遇到slower)，则 s = nr，也就是 a + b = nr。
+而s当前在b指向的位置，所以slower再走a步就能走完一圈了。而我们知道a刚好就是头结点到入环点的位置，所以此时faster再从头走过，slower和faster将在入环点相遇。
+
+#+begin_src python
+  """
+              J I H
+        A B C 9   G
+              D E F
+
+
+        1. S -> A, F -> A
+        2. S -> B, F -> C
+        3. S -> C, F -> D
+        4. S -> 9, F -> F
+        5. S -> D, F -> H
+        6. S -> E, F -> J
+        7. S -> F, F -> D
+        8. S -> G, F -> F
+        10. S -> H, F -> H      # S, F相遇到，此时F回到A
+        11. S -> I, F -> B
+        12. S -> J, F -> C
+        13. S -> 9, F -> 9      # S, F又相等了，9便是入口点
+
+  """
+#+end_src
+
+#+begin_src python
+  from typing import Optional
+
+  class ListNode:
+      def __init__(self, x):
+          self.val = x
+          self.next = None
+
+  class Solution:
+      def detectCycle(self, head: Optional[ListNode]) -> Optional[ListNode]:
+          if head is None:
+              return None
+          if head.next is None:
+              return None
+          if head.next.next is None:
+              return None
+          slower, faster = head, head
+          while slower and faster:
+              slower = slower.next
+              faster = faster.next
+              if faster:
+                  faster = faster.next
+              if not faster:
+                  return None
+              if faster == slower:
+                  break
+          faster = head
+          while slower != faster:
+              slower = slower.next
+              faster = faster.next
+          return faster
+#+end_src

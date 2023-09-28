@@ -1,0 +1,97 @@
+#+TITLE: 机器人走格子
+#+DATE: 2023-09-27 19:40:02
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: 动态规划
+#+CATEGORIES: 动态规划 算法
+
+* Robot Jump
+#+begin_src python
+  # 假设有排成一行的N个位置，记为1-N，N 一定大于或等于 2
+  # 开始时机器人在其中的M位置上(M 一定是1N 中的一个)
+  # 如果机器人来到1位置，那么下一步只能往右来到2位置;
+  # 如果机器人来到N位置，那么下一步只能往左来到 N-1 位置:
+  # 如果机器人来到中间位置，那么下一步可以往左走或者往右走;
+  # 规定机器人必须走 K步，最终能来到P位置(P也是1-N中的一个)的方法有多少种
+  # 给定四个参数 N、M、K、P，返回方法数。
+
+  # n: 1~n 个位置
+  # m: 当前位置
+  # k: 还能走多少步
+  # p: 目标位置
+
+  def robot_recusive(cur, rest, aim, n):
+      if rest == 0 and cur == aim:
+          return 1
+      if rest == 0 and cur != aim:
+          return 0
+      if cur == 1:
+          return robot_recusive(2, rest - 1, aim, n)
+      if cur == n:
+          return robot_recusive(n - 1, rest - 1, aim, n)
+      return robot_recusive(cur - 1, rest - 1, aim, n) + robot_recusive(cur + 1, rest - 1, aim, n)
+
+
+  def robot_memo(cur, rest, aim, n, memo):
+      if memo[cur][rest] != -1:
+          return memo[cur][rest]
+      ans = 0
+      if rest == 0:
+          ans = 1 if cur == aim else 0
+      else:
+          if cur == 1:
+              ans = robot_memo(2, rest - 1, aim, n, memo)
+          elif cur == n:
+              ans = robot_memo(n - 1, rest - 1, aim, n, memo)
+          else:
+              ans = robot_memo(cur - 1, rest - 1, aim, n, memo) + robot_memo(cur + 1, rest - 1, aim, n, memo)
+      memo[cur][rest] = ans
+      return ans
+
+  # dp[i][j] 表示从i位置，走j步，走到aim，一共有多少种方法。
+  def robot_dp(cur, rest, aim, n):
+      dp = [[0] * (rest + 1) for i in range(0, n + 1)]
+      dp[aim][0] = 1
+      for j in range(1, rest + 1):
+          for i in range(1, n + 1):
+              if i == 1:
+                  dp[i][j] = dp[2][j - 1] # return robot_recusive(2, rest - 1, aim, n)
+              elif i == n:
+                  dp[i][j] = dp[n - 1][j - 1] # return robot_recusive(n - 1, rest - 1, aim, n)
+              else:
+                  dp[i][j] = dp[i - 1][j - 1] + dp[i + 1][j - 1] # return robot_recusive(cur - 1, rest - 1, aim, n) + robot_recusive(cur + 1, rest - 1, aim, n)
+      return dp[cur][rest]
+
+  def robot_dp2(cur, rest, aim, n):
+    dp = [[0] * (rest + 1) for i in range(0, n + 1)]
+    dp[aim][0] = 1
+    for j in range(1, rest + 1):
+        dp[1][j] = dp[2][j - 1]
+        for i in range(2, n):
+            dp[i][j] = dp[i - 1][j - 1] + dp[i + 1][j - 1]
+        dp[n][j] = dp[n - 1][j - 1]
+    return dp[cur][rest]
+
+
+  cur = 30
+  rest = 30
+  aim = 40
+  n = 400
+  memo = [[-1] * (rest + 1) for i in range(0, n + 1)]
+  import time
+
+  start = time.time()
+  print(robot_memo(cur, rest, aim, n, memo))
+  print(f"记忆化搜索: {time.time() - start}")
+
+  start = time.time()
+  print(robot_dp(cur, rest, aim, n))
+  print(f"dp耗时: {time.time() - start}")
+
+  start = time.time()
+  print(robot_recusive(cur, rest, aim, n))
+  print(f"递归耗时: {time.time() - start}")
+
+#+end_src

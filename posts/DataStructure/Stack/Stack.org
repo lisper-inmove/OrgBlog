@@ -1,0 +1,256 @@
+#+TITLE: 栈
+#+DATE: 2023-09-28 00:32:35
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: 数据结构 栈
+#+CATEGORIES: 栈
+
+* 栈
+
+栈是一种基础数据结构。它遵循后进先出的原则。常用的操作主要有以下几种:
+1. 压栈(Push): 添加一个元素到栈顶
+2. 出栈(Pop): 从栈顶移除一个元素
+3. 查看栈顶(Peek): 查看栈顶的元素，但是不弹出
+4. 判空(isEmpty): 查看栈是否为空
+5. 栈满(isFull): 数组实现的栈一般会有一个长度上限
+
+* 用数组实现栈
+#+begin_src c
+  #include <stdio.h>
+  #include <stdbool.h>
+
+  #define MAX_SIZE 100  // 定义栈的最大容量
+
+  // 栈结构体
+  struct Stack {
+      int arr[MAX_SIZE];
+      int top;
+  };
+
+  // 初始化栈
+  void initialize(struct Stack* stack) {
+      stack->top = -1;
+  }
+
+  // 判断栈是否为空
+  bool isEmpty(struct Stack* stack) {
+      return stack->top == -1;
+  }
+
+  // 判断栈是否已满
+  bool isFull(struct Stack* stack) {
+      return stack->top == MAX_SIZE - 1;
+  }
+
+  // 压栈操作
+  bool push(struct Stack* stack, int value) {
+      if (isFull(stack)) {
+          printf("栈已满，无法压栈: %d\n", value);
+          return false;
+      }
+      stack->arr[++stack->top] = value;
+      return true;
+  }
+
+  // 出栈操作
+  bool pop(struct Stack* stack, int* value) {
+      if (isEmpty(stack)) {
+          printf("栈是空的，无法出栈\n");
+          return false;
+      }
+      ,*value = stack->arr[stack->top--];
+      return true;
+  }
+
+  // 查看栈顶元素
+  bool peek(struct Stack* stack, int* value) {
+      if (isEmpty(stack)) {
+          printf("当前栈是空的，没有元素\n");
+          return false;
+      }
+      ,*value = stack->arr[stack->top];
+      return true;
+  }
+
+  int main() {
+      struct Stack stack;
+      initialize(&stack);
+
+      // 压栈操作
+      push(&stack, 1);
+      push(&stack, 2);
+      push(&stack, 3);
+
+      // 查看栈顶元素
+      int value;
+      if (peek(&stack, &value)) {
+          printf("栈顶元素为 %d\n", value);
+      }
+
+      // 出栈操作
+      if (pop(&stack, &value)) {
+          printf("弹出栈顶元素为 %d\n", value);
+      }
+
+      return 0;
+  }
+#+end_src
+
+#+begin_src python
+  class ArrayStack:
+
+      def __init__(self, size):
+          self.size = size
+          self.values = [0] * self.size
+          self.top = -1
+
+      def push(self, value):
+          if self.isFull():
+              raise Exception("栈满")
+          self.values[self.top + 1] = value
+          self.top += 1
+
+      def pop(self):
+          if self.isEmpty():
+              raise Exception("栈空")
+          value = self.values[self.top - 1]
+          self.top -= 1
+          return value
+
+      def peek(self):
+          if self.isEmpty():
+              raise Exception("栈空")
+          return self.values[self.top - 1]
+
+      def isEmpty(self):
+          return self.top == -1
+
+      def isFull(self):
+          return self.top == self.size - 1
+
+      def display(self):
+          values = []
+          for index in range(0, self.top + 1):
+              values.append(str(self.values[index]))
+          print(",".join(values))
+
+#+end_src
+  ```
+* 用链表实现栈
+#+begin_src c
+  #include <stdio.h>
+  #include <stdlib.h>
+
+  // 定义链表节点结构体
+  struct Node {
+      int data;
+      struct Node* next;
+  };
+
+  // 定义栈结构体
+  struct Stack {
+      struct Node* top;
+  };
+
+  // 创建一个新的栈
+  struct Stack* createStack() {
+      struct Stack* newStack = (struct Stack*)malloc(sizeof(struct Stack));
+      newStack->top = NULL;
+      return newStack;
+  }
+
+  // 检查栈是否为空
+  int isEmpty(struct Stack* stack) {
+      return stack->top == NULL;
+  }
+
+  // 压栈操作
+  void push(struct Stack* stack, int data) {
+      struct Node* newNode = (struct Node*)malloc(sizeof(struct Node));
+      newNode->data = data;
+      newNode->next = stack->top;
+      stack->top = newNode;
+  }
+
+  // 出栈操作
+  int pop(struct Stack* stack) {
+      if (isEmpty(stack)) {
+          printf("栈空，无法出栈!\n");
+          return -1;
+      }
+      struct Node* temp = stack->top;
+      int poppedData = temp->data;
+      stack->top = temp->next;
+      free(temp);
+      return poppedData;
+  }
+
+  // 查看栈顶元素
+  int peek(struct Stack* stack) {
+      if (isEmpty(stack)) {
+          printf("栈空，没有元素了!\n");
+          return -1;
+      }
+      return stack->top->data;
+  }
+
+  // 主函数
+  int main() {
+      struct Stack* myStack = createStack();
+
+      push(myStack, 1);
+      push(myStack, 2);
+      push(myStack, 3);
+
+      printf("栈顶元素为 %d\n", peek(myStack));
+
+      printf("弹出栈顶元素为 %d\n", pop(myStack));
+
+      return 0;
+  }
+#+end_src
+
+#+begin_src python
+  class LinkListStack():
+
+      class Node:
+          def __init__(self, value):
+              self.value = value
+              self.next = None
+
+      def __init__(self):
+          self.curSize = 0
+          self.top = None
+
+      def push(self, value):
+          newNode = self.Node(value)
+          newNode.next = self.top
+          self.top = newNode
+
+      def pop(self):
+          if self.isEmpty():
+              raise Exception("栈空")
+          n = self.top.next
+          popped = self.top
+          self.top = n
+          return popped
+
+      def isEmpty(self):
+          return self.top is None
+
+      def isFull(self):
+          return False
+
+      def peek(self):
+          return self.top
+
+      def display(self):
+          tmp = self.top
+          values = []
+          while tmp:
+              values.append(str(tmp.value))
+              tmp = tmp.next
+          print(",".join(values))
+#+end_src

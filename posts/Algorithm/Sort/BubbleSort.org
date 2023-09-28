@@ -1,0 +1,28 @@
+#+TITLE: 冒泡排序
+#+DATE: 2023-09-27 21:51:29
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: 冒泡排序 排序
+#+CATEGORIES: 算法 排序
+
+* 冒泡排序
+#+begin_src python
+  def bubbleSort(arr):
+      n = len(arr)
+      # 遍历所有数组元素
+      for i in range(n):
+          # 标记变量，用于优化
+          swapped = False
+          # 最后i个元素已经到位，无需比较
+          for j in range(0, n-i-1):
+              # 遍历数组从0到n-i-1，交换如果元素找到比它大的元素
+              if arr[j] > arr[j+1]:
+                  arr[j], arr[j+1] = arr[j+1], arr[j]
+                  swapped = True
+          # 如果在内部循环中没有交换，则数组已经排序完成
+          if not swapped:
+              break
+      return arr
+#+end_src

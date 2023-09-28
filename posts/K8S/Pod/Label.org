@@ -1,0 +1,47 @@
+#+TITLE: Label
+#+DATE: 2023-09-28 16:44:11
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: Kubernetes label
+#+CATEGORIES: Kubernetes
+
+
+* 什么是标签
+
+  标签在K8S中有非常重要的作用。很多时候我们都是通过标签来做匹配的。比如Service匹配后端Pod。
+
+* 通过命令行添加标签
+
+#+begin_src shell
+  k label nodes NODE-NAME key=value  # 为结点添加标签
+  k get nodes --show-labels # 查看结点的信息，包括标签
+  k describe svc/pod SVC-NAME/POD-NAME # 查看svc或pod的信息，里面会有labels的信息
+#+end_src
+
+* 通过yaml标签
+#+begin_src yaml
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: my-pod
+    labels:
+      app: my-app
+      environment: dev
+#+end_src
+
+* 通过标签选择器查看资源
+#+begin_src shell
+  k get pods -l key=value
+#+end_src
+* 在控制中使用标签
+#+begin_src yaml
+  apiVersion: v1
+  kind: Service
+  metadata:
+    name: my-service
+  spec:
+    selector:    # 选择app=my-app的pod作为后台服务
+      app: my-app
+#+end_src

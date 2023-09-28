@@ -1,0 +1,255 @@
+#+TITLE: 货币组成
+#+DATE: 2023-09-27 19:59:37
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: 动态规划
+#+CATEGORIES: 动态规划 算法
+
+* 货币组成
+** 货币数组(不可重复)
+#+begin_src python
+  # arr是货币数组，其中的值都是正数。再给定一个正数aim。
+  # 每个值都认为是一张货币，
+  # 即便是值相同的货币也认为每一张都是不同的
+  # 返回组成aim的方法数
+  # 例如:arr =[1,1,1}，aim =2第0个和第1个能组成2，第1个和第2个能组成2，第0个和第2个能组成2一共就3种方法，所以返回3
+
+  def CoinAim(arr, index, aim):
+      if aim < 0:
+          return 0
+      if len(arr) == index:
+          return 1 if aim == 0 else 0
+      return CoinAim(arr, index + 1, aim) + CoinAim(arr, index + 1, aim - arr[index])
+
+  def CoinAimDP(arr):
+      dp = [[0] * (aim + 1) for i in range(0, len(arr) + 1)]
+
+      n = len(arr)
+      dp[n][0] = 1
+      for i in range(n - 1, -1, -1):
+          for j in range(0, aim + 1):
+              dp[i][j] = dp[i + 1][j]
+              if j - arr[i] >= 0:  # if aim < 0 的处理
+                  dp[i][j] += dp[i + 1][j - arr[i]]
+
+      return dp[0][aim]
+
+
+  if __name__ == '__main__':
+      arr = [1, 2, 3]
+      aim = 3
+      print(CoinAim(arr, 0, aim))
+      print(CoinAimDP(arr))
+
+#+end_src
+
+** 面值数组(可重复)
+#+begin_src python
+  关于CoinAimDP2: https://www.bilibili.com/video/BV1uX4y1Q76z?p=50&vd_source=81fbf7e17950002b5ad239e1974ba27c
+
+  如何从CoinAimDP 变化为 CoinAimDP2
+
+  与上一题不同的是，每个数是可以重复选择的。所以计算 dp[i][j] 需要用一个循环(CoinAimDP)。假设要计算dp[3][14]，当前面值为 3元
+  1. 首先它依赖于 dp[4][14]，也就是不选这张3元的面值
+  2. 然后它又依赖 dp[4][11]，选择了一张3元
+  3. dp[4][8]
+  4. dp[4][5]
+  5. dp[4][2]
+  6. dp[4][-1]，因为aim小于0了，所以直接忽略
+
+  也就是说计算 dp[3][14] = dp[4][14] + dp[4][11] + dp[4][8] + dp[4][5] + dp[4][2]
+
+  同样的，计算dp[3][11] = dp[4][11] + dp[4][8] + dp[4][5] + dp[4][2]
+
+  所以 dp[3][14] = dp[4][14] + dp[3][11]
+
+  ```python
+  # arr是面值数组，其中的值都是正数且没有重复。
+  # 再给定一个正数aim。每个值都认为是一种面值，且认为张数是无限的。
+  # 返回组成aim的方法数例如:arr =[1,2]，aim =4
+  # 方法如下:1+1+1+1、1+1+2、2+2一共就3种方法，所以返回3
+
+  def CoinAim(arr, aim):
+
+      def process(arr, index, aim):
+          if aim == 0:
+              return 1
+          if index == len(arr):
+              return 0
+          if aim < 0:
+              return 0
+          methods = process(arr, index + 1, aim) + \
+              process(arr, index, aim - arr[index])
+          return methods
+
+      return process(arr, 0, aim)
+
+  def CoinAim2(arr, aim):
+
+      def process(arr, index, aim):
+          if (index == len(arr)):
+              return 1 if aim == 0 else 0
+          ways = 0
+          maxNumber = int(aim / arr[index])
+          for number in range(0, maxNumber + 1):
+              ways += process(arr, index + 1, aim - number * arr[index])
+          return ways
+
+      return process(arr, 0, aim)
+
+  def CoinAimDP(arr, aim):
+
+      def process(arr, aim):
+          N = len(arr)
+          dp = [[0] * (aim + 1) for i in range(0, len(arr) + 1)]
+
+          dp[N][0] = 1
+          for i in range(N - 1, -1, -1):
+              for j in range(0, aim + 1):
+                  ways = 0
+                  maxNumber = int(j / arr[i])
+                  for number in range(0, maxNumber + 1):
+                      ways += dp[i + 1][j - number * arr[i]]
+                  dp[i][j] = ways
+
+          return dp[0][aim]
+
+      return process(arr, aim)
+
+  def CoinAimDP2(arr, aim):
+
+      def process(arr, aim):
+          N = len(arr)
+          dp = [[0] * (aim + 1) for i in range(0, len(arr) + 1)]
+
+          dp[N][0] = 1
+          for i in range(N - 1, -1, -1):
+              for j in range(0, aim + 1):
+                  dp[i][j] = dp[i + 1][j]
+                  if j - arr[i] >= 0:
+                      dp[i][j] += dp[i][j - arr[i]]
+          return dp[0][aim]
+
+      return process(arr, aim)
+
+
+  def test():
+      import random
+      arrNumber = random.randint(10, 15)
+      aim = random.randint(20, 30)
+      arr = set()
+      for i in range(0, arrNumber):
+          arr.add(random.randint(1, 10))
+      print(arr, aim)
+      a1 = CoinAim(list(arr), aim)
+      a2 = CoinAim2(list(arr), aim)
+      a3 = CoinAimDP(list(arr), aim)
+      a4 = CoinAimDP2(list(arr), aim)
+      print(a1, a2, a3, a4)
+      assert a1 == a2 == a3 == a4
+
+  if __name__ == '__main__':
+      test()
+
+#+end_src
+** 货币数组(限定张数)
+#+begin_src python
+  与上一题不同的是，每个数是可以重复选择的，但是张数是限定了的。假设要计算dp[3][14]，当前面值为 3元，一共两张
+  1. 首先它依赖于 dp[4][14]，也就是不选这张3元的面值
+  2. 然后它又依赖 dp[4][11]，选择了一张3元
+  3. dp[4][8]
+  4. 没有dp[4][5]了，因为3元的一共只有两张
+
+  也就是说计算 dp[3][14] = dp[4][14] + dp[4][11] + dp[4][8]
+
+  同样的，计算dp[3][11] = dp[4][11] + dp[4][8] + dp[4][5]
+
+  所以 dp[3][14] = dp[4][14] + dp[3][11] - dp[4][5]
+
+
+  ```python
+  # arr是货币数组，其中的值都是正数。再给定一个正数aim。
+  # 每个值都认为是一张货币
+  # 认为值相同的货币没有任何不同
+  # 返回组成aim的方法数
+  # 例如 : arr =1,2,1,1,2,1,2，aim =4方法:1+1+1+1、1+1+2、2+2一共就3种方法，所以返回3
+
+  def CoinAim(arr, aim):
+
+      coins = {}
+      for ele in arr:
+          coins.update({
+              ele: coins.get(ele, 0) + 1
+          })
+
+      _coins, _numbers = [], []
+      for _coin, _number in coins.items():
+          _coins.append(_coin)
+          _numbers.append(_number)
+
+      print(f"面值: {_coins}")
+      print(f"数量: {_numbers}")
+
+      def process(_coins, _numbers, index, aim):
+          if index == len(_coins):
+              return 1 if aim == 0 else 0
+          ways = 0
+          maxNumber = int(aim / _coins[index])
+          for i in range(0, maxNumber + 1):
+              if i <= _numbers[index]:
+                  ways += process(_coins, _numbers, index + 1, aim - _coins[index] * i)
+          return ways
+
+      return process(_coins, _numbers, 0, aim)
+
+
+  def CoinAimDP(arr, aim):
+
+      coins = {}
+      for ele in arr:
+          coins.update({
+              ele: coins.get(ele, 0) + 1
+          })
+
+      _coins, _numbers = [], []
+      for _coin, _number in coins.items():
+          _coins.append(_coin)
+          _numbers.append(_number)
+
+      print(f"面值: {_coins}")
+      print(f"数量: {_numbers}")
+
+      N = len(_coins)
+
+      dp = [[0] * (aim + 1) for i in range(0, len(_coins) + 1)]
+      dp[N][0] = 1
+
+      for i in range(N - 1, -1, -1):
+          for j in range(0, aim + 1):
+              dp[i][j] = dp[i + 1][j]
+              if j - _coins[i] >= 0:
+                  dp[i][j] += dp[i][j - _coins[i]]
+              if j - _coins[i] * (_numbers[i] + 1) >= 0:
+                  dp[i][j] -= dp[i + 1][j - _coins[i] * (_numbers[i] + 1)]
+
+      return dp[0][aim]
+
+
+  def test():
+      import random
+      arrNumber = random.randint(10, 15)
+      aim = random.randint(20, 30)
+      arr = []
+      for i in range(0, arrNumber):
+          arr.append(random.randint(1, 5))
+
+      a1 = CoinAim(list(arr), aim)
+      a2 = CoinAimDP(list(arr), aim)
+      print(arr, aim, a1, a2)
+
+
+  if __name__ == '__main__':
+      test()
+#+end_src

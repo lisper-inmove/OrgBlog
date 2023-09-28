@@ -1,0 +1,55 @@
+#+TITLE: 归并排序
+#+DATE: 2023-09-27 21:48:50
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: 算法 归并排序
+#+CATEGORIES: 算法 排序
+
+* MergeSort
+#+begin_src python
+  def mergeSort(arr):
+      """
+      将数组分成两部分。对左右分别进行排序，然后合并。时间复杂度始终为 O(n logn)。需要的空间复杂为 O(n)
+      """
+      def merge(left, right):
+          merged = []
+          left_idx, right_idx = 0, 0
+
+          # 当两个数组都有元素时，进行比较并合并
+          while left_idx < len(left) and right_idx < len(right):
+              if left[left_idx] < right[right_idx]:
+                  merged.append(left[left_idx])
+                  left_idx += 1
+              else:
+                  merged.append(right[right_idx])
+                  right_idx += 1
+
+          # 如果左侧数组还有剩余元素，将其添加到merged中
+          while left_idx < len(left):
+              merged.append(left[left_idx])
+              left_idx += 1
+
+          # 如果右侧数组还有剩余元素，将其添加到merged中
+          while right_idx < len(right):
+              merged.append(right[right_idx])
+              right_idx += 1
+
+          return merged
+
+      if len(arr) <= 1:
+          return arr
+
+      # 将数组分为两半
+      mid = len(arr) // 2
+      left_half = arr[:mid]
+      right_half = arr[mid:]
+
+      # 递归地对两半进行排序
+      left_half = mergeSort(left_half)
+      right_half = mergeSort(right_half)
+
+      # 合并已排序的两半
+      return merge(left_half, right_half)
+#+end_src

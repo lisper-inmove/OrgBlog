@@ -1,0 +1,91 @@
+#+TITLE: O(1)获取最小值的栈
+#+DATE: 2023-09-28 00:35:01
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: 算法 栈
+#+CATEGORIES: 栈 数据结构
+
+* O(1)获取最小值的栈
+
+要求getMin函数的时间复杂度为 O(1)
+1. 使用 两个栈A B。A就是普通栈的使用方式。B则用于保存最小值。B的栈顶始终是当前的最小值
+2. 每次生栈的时候，先压入A，再从B peek出当前最小值，与新的值比较，如果新值比peek出来的要小，那个新值也push到B
+3. 每次getMin就直接从B中peek出最小值就行了。
+
+#+begin_src python
+  class GetMinStack:
+
+      def __init__(self, size):
+          self.size = size
+          self.dataStack = []
+          self.minStack = []
+
+      def push(self, value):
+          if self.isFull():
+              return float('inf')
+          self.dataStack.append(value)
+          if len(self.minStack) == 0:
+              self.minStack.append(value)
+          else:
+              lastMin = self.minStack[-1]
+              if lastMin >= value:
+                  self.minStack.append(value)
+
+      def pop(self):
+          if self.isEmpty():
+              return float('inf')
+          v0 = self.dataStack.pop()
+          v1 = self.minStack.pop()
+          if v0 != v1:
+              self.minStack.append(v1)
+          return v0
+
+      def peek(self):
+          if self.isEmpty():
+              return float('inf')
+          return self.dataStack[-1]
+
+      def isEmpty(self):
+          if len(self.dataStack) == 0:
+              return True
+          return False
+
+      def isFull(self):
+          if len(self.dataStack) == self.size:
+              return True
+          return False
+
+      def getMin(self):
+          if len(self.minStack) == 0:
+              return float('inf')
+          return self.minStack[-1]
+
+
+  if __name__ == '__main__':
+      obj = GetMinStack(100)
+
+      obj.push(1)
+      obj.push(3)
+      obj.push(1)
+      print(obj.dataStack)
+      print(obj.minStack)
+      print(obj.getMin())
+
+      obj.pop()
+      print(obj.dataStack)
+      print(obj.minStack)
+      print(obj.getMin())
+
+      obj.pop()
+      print(obj.dataStack)
+      print(obj.minStack)
+      print(obj.getMin())
+
+      obj.pop()
+      print(obj.dataStack)
+      print(obj.minStack)
+      print(obj.getMin())
+
+#+end_src

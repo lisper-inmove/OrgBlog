@@ -1,0 +1,1652 @@
+{
+  "type": "document",
+  "properties": {
+    "title": "10. 正则表达式匹配",
+    "date": "2023-09-28 16:47:06",
+    "display": "t",
+    "startup": "indent",
+    "options": "toc:10",
+    "author": "inmove",
+    "keywords": "Leetcode 动态规划",
+    "categories": "Leetcode 动态规划",
+    "difficulty": "困难"
+  },
+  "children": [
+    {
+      "type": "keyword",
+      "key": "TITLE",
+      "value": "10. 正则表达式匹配",
+      "position": {
+        "start": {
+          "line": 1,
+          "column": 1,
+          "offset": 0
+        },
+        "end": {
+          "line": 1,
+          "column": 21,
+          "offset": 20
+        }
+      }
+    },
+    {
+      "type": "keyword",
+      "key": "DATE",
+      "value": "2023-09-28 16:47:06",
+      "position": {
+        "start": {
+          "line": 2,
+          "column": 1,
+          "offset": 21
+        },
+        "end": {
+          "line": 2,
+          "column": 28,
+          "offset": 48
+        }
+      }
+    },
+    {
+      "type": "keyword",
+      "key": "DISPLAY",
+      "value": "t",
+      "position": {
+        "start": {
+          "line": 3,
+          "column": 1,
+          "offset": 49
+        },
+        "end": {
+          "line": 3,
+          "column": 13,
+          "offset": 61
+        }
+      }
+    },
+    {
+      "type": "keyword",
+      "key": "STARTUP",
+      "value": "indent",
+      "position": {
+        "start": {
+          "line": 4,
+          "column": 1,
+          "offset": 62
+        },
+        "end": {
+          "line": 4,
+          "column": 18,
+          "offset": 79
+        }
+      }
+    },
+    {
+      "type": "keyword",
+      "key": "OPTIONS",
+      "value": "toc:10",
+      "position": {
+        "start": {
+          "line": 5,
+          "column": 1,
+          "offset": 80
+        },
+        "end": {
+          "line": 5,
+          "column": 18,
+          "offset": 97
+        }
+      }
+    },
+    {
+      "type": "keyword",
+      "key": "AUTHOR",
+      "value": "inmove",
+      "position": {
+        "start": {
+          "line": 6,
+          "column": 1,
+          "offset": 98
+        },
+        "end": {
+          "line": 6,
+          "column": 17,
+          "offset": 114
+        }
+      }
+    },
+    {
+      "type": "keyword",
+      "key": "KEYWORDS",
+      "value": "Leetcode 动态规划",
+      "position": {
+        "start": {
+          "line": 7,
+          "column": 1,
+          "offset": 115
+        },
+        "end": {
+          "line": 7,
+          "column": 26,
+          "offset": 140
+        }
+      }
+    },
+    {
+      "type": "keyword",
+      "key": "CATEGORIES",
+      "value": "Leetcode 动态规划",
+      "position": {
+        "start": {
+          "line": 8,
+          "column": 1,
+          "offset": 141
+        },
+        "end": {
+          "line": 8,
+          "column": 28,
+          "offset": 168
+        }
+      }
+    },
+    {
+      "type": "keyword",
+      "key": "DIFFICULTY",
+      "value": "困难",
+      "position": {
+        "start": {
+          "line": 9,
+          "column": 1,
+          "offset": 169
+        },
+        "end": {
+          "line": 9,
+          "column": 17,
+          "offset": 185
+        }
+      }
+    },
+    {
+      "type": "emptyLine",
+      "position": {
+        "start": {
+          "line": 10,
+          "column": 1,
+          "offset": 186
+        },
+        "end": {
+          "line": 11,
+          "column": 1,
+          "offset": 187
+        }
+      }
+    },
+    {
+      "type": "section",
+      "level": 1,
+      "properties": {},
+      "children": [
+        {
+          "type": "headline",
+          "actionable": false,
+          "children": [
+            {
+              "type": "stars",
+              "level": 1,
+              "position": {
+                "start": {
+                  "line": 11,
+                  "column": 1,
+                  "offset": 187
+                },
+                "end": {
+                  "line": 11,
+                  "column": 2,
+                  "offset": 188
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": "Solution",
+              "position": {
+                "start": {
+                  "line": 11,
+                  "column": 3,
+                  "offset": 189
+                },
+                "end": {
+                  "line": 11,
+                  "column": 11,
+                  "offset": 197
+                }
+              }
+            },
+            {
+              "type": "newline",
+              "position": {
+                "start": {
+                  "line": 11,
+                  "column": 11,
+                  "offset": 197
+                },
+                "end": {
+                  "line": 12,
+                  "column": 1,
+                  "offset": 198
+                }
+              }
+            }
+          ],
+          "level": 1,
+          "position": {
+            "start": {
+              "line": 11,
+              "column": 1,
+              "offset": 187
+            },
+            "end": {
+              "line": 12,
+              "column": 1,
+              "offset": 198
+            }
+          }
+        },
+        {
+          "type": "block",
+          "name": "src",
+          "params": [
+            "python"
+          ],
+          "value": "class Solution:\n\n    def isMatch(self, s: str, p: str) -> bool:\n        if not p:\n            return not s\n\n        firstMatch = bool(s) and p[0] in {s[0], '.'}\n\n        if len(p) >= 2 and p[1] == '*':\n            return (self.isMatch(s, p[2:])) or (firstMatch and self.isMatch(s[1:], p))\n        else:\n            return firstMatch and self.isMatch(s[1:], p[1:])\n\n    def isMatchDP(self, s: str, p: str) -> bool:\n        dp = [[False] * (len(p) + 1) for i in range(len(s) + 1)]\n\n        for i in range(0, len(s) + 1):\n            dp[i][0] = False\n\n        dp[0][0] = True\n\n        for i in range(0, len(s) + 1):\n            for j in range(1, len(p) + 1):\n\n                # 关于递归中的 firstMatch:\n                # p[j - 1] 是当前字符，当p[j - 1]是'*'时，firstMatch 应该用 p[j - 2]去做计算firstMatch\n                #                      否则，用 p[j - 1] 去做计算firstMatch\n\n                if p[j - 1] == \"*\":\n                    dp[i][j] = dp[i][j - 2] or \\\n                        (\n                            i > 0 and dp[i - 1][j] and\n                            (s[i - 1] == p[j - 2] or p[j - 2] == '.')\n                         )\n                else:\n                    dp[i][j] = i > 0 and \\\n                        (\n                            s[i - 1] == p[j - 1] or p[j - 1] == '.'\n                        ) and dp[i - 1][j - 1]\n\n        return dp[len(s)][len(p)]",
+          "attributes": {},
+          "children": [
+            {
+              "type": "block.begin",
+              "name": "src",
+              "params": [
+                "python"
+              ],
+              "position": {
+                "start": {
+                  "line": 12,
+                  "column": 1,
+                  "offset": 198
+                },
+                "end": {
+                  "line": 12,
+                  "column": 19,
+                  "offset": 216
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": "  class Solution:",
+              "position": {
+                "start": {
+                  "line": 13,
+                  "column": 1,
+                  "offset": 217
+                },
+                "end": {
+                  "line": 13,
+                  "column": 18,
+                  "offset": 234
+                }
+              }
+            },
+            {
+              "type": "newline",
+              "position": {
+                "start": {
+                  "line": 13,
+                  "column": 18,
+                  "offset": 234
+                },
+                "end": {
+                  "line": 14,
+                  "column": 1,
+                  "offset": 235
+                }
+              }
+            },
+            {
+              "type": "emptyLine",
+              "position": {
+                "start": {
+                  "line": 14,
+                  "column": 1,
+                  "offset": 235
+                },
+                "end": {
+                  "line": 15,
+                  "column": 1,
+                  "offset": 236
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": "      def isMatch(self, s: str, p: str) -> bool:",
+              "position": {
+                "start": {
+                  "line": 15,
+                  "column": 1,
+                  "offset": 236
+                },
+                "end": {
+                  "line": 15,
+                  "column": 49,
+                  "offset": 284
+                }
+              }
+            },
+            {
+              "type": "newline",
+              "position": {
+                "start": {
+                  "line": 15,
+                  "column": 49,
+                  "offset": 284
+                },
+                "end": {
+                  "line": 16,
+                  "column": 1,
+                  "offset": 285
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": "          if not p:",
+              "position": {
+                "start": {
+                  "line": 16,
+                  "column": 1,
+                  "offset": 285
+                },
+                "end": {
+                  "line": 16,
+                  "column": 20,
+                  "offset": 304
+                }
+              }
+            },
+            {
+              "type": "newline",
+              "position": {
+                "start": {
+                  "line": 16,
+                  "column": 20,
+                  "offset": 304
+                },
+                "end": {
+                  "line": 17,
+                  "column": 1,
+                  "offset": 305
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": "              return not s",
+              "position": {
+                "start": {
+                  "line": 17,
+                  "column": 1,
+                  "offset": 305
+                },
+                "end": {
+                  "line": 17,
+                  "column": 27,
+                  "offset": 331
+                }
+              }
+            },
+            {
+              "type": "newline",
+              "position": {
+                "start": {
+                  "line": 17,
+                  "column": 27,
+                  "offset": 331
+                },
+                "end": {
+                  "line": 18,
+                  "column": 1,
+                  "offset": 332
+                }
+              }
+            },
+            {
+              "type": "emptyLine",
+              "position": {
+                "start": {
+                  "line": 18,
+                  "column": 1,
+                  "offset": 332
+                },
+                "end": {
+                  "line": 19,
+                  "column": 1,
+                  "offset": 333
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": "          firstMatch = bool(s) and p[0] in {s[0], '.'}",
+              "position": {
+                "start": {
+                  "line": 19,
+                  "column": 1,
+                  "offset": 333
+                },
+                "end": {
+                  "line": 19,
+                  "column": 55,
+                  "offset": 387
+                }
+              }
+            },
+            {
+              "type": "newline",
+              "position": {
+                "start": {
+                  "line": 19,
+                  "column": 55,
+                  "offset": 387
+                },
+                "end": {
+                  "line": 20,
+                  "column": 1,
+                  "offset": 388
+                }
+              }
+            },
+            {
+              "type": "emptyLine",
+              "position": {
+                "start": {
+                  "line": 20,
+                  "column": 1,
+                  "offset": 388
+                },
+                "end": {
+                  "line": 21,
+                  "column": 1,
+                  "offset": 389
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": "          if len(p) >= 2 and p[1] ",
+              "position": {
+                "start": {
+                  "line": 21,
+                  "column": 1,
+                  "offset": 389
+                },
+                "end": {
+                  "line": 21,
+                  "column": 35,
+                  "offset": 423
+                }
+              }
+            },
+            {
+              "type": "text",
+              "style": "verbatim",
+              "value": "",
+              "position": {
+                "start": {
+                  "line": 21,
+                  "column": 35,
+                  "offset": 423
+                },
+                "end": {
+                  "line": 21,
+                  "column": 37,
+                  "offset": 425
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": " '*':",
+              "position": {
+                "start": {
+                  "line": 21,
+                  "column": 37,
+                  "offset": 425
+                },
+                "end": {
+                  "line": 21,
+                  "column": 42,
+                  "offset": 430
+                }
+              }
+            },
+            {
+              "type": "newline",
+              "position": {
+                "start": {
+                  "line": 21,
+                  "column": 42,
+                  "offset": 430
+                },
+                "end": {
+                  "line": 22,
+                  "column": 1,
+                  "offset": 431
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": "              return (self.isMatch(s, p[2:])) or (firstMatch and self.isMatch(s[1:], p))",
+              "position": {
+                "start": {
+                  "line": 22,
+                  "column": 1,
+                  "offset": 431
+                },
+                "end": {
+                  "line": 22,
+                  "column": 89,
+                  "offset": 519
+                }
+              }
+            },
+            {
+              "type": "newline",
+              "position": {
+                "start": {
+                  "line": 22,
+                  "column": 89,
+                  "offset": 519
+                },
+                "end": {
+                  "line": 23,
+                  "column": 1,
+                  "offset": 520
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": "          else:",
+              "position": {
+                "start": {
+                  "line": 23,
+                  "column": 1,
+                  "offset": 520
+                },
+                "end": {
+                  "line": 23,
+                  "column": 16,
+                  "offset": 535
+                }
+              }
+            },
+            {
+              "type": "newline",
+              "position": {
+                "start": {
+                  "line": 23,
+                  "column": 16,
+                  "offset": 535
+                },
+                "end": {
+                  "line": 24,
+                  "column": 1,
+                  "offset": 536
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": "              return firstMatch and self.isMatch(s[1:], p[1:])",
+              "position": {
+                "start": {
+                  "line": 24,
+                  "column": 1,
+                  "offset": 536
+                },
+                "end": {
+                  "line": 24,
+                  "column": 63,
+                  "offset": 598
+                }
+              }
+            },
+            {
+              "type": "newline",
+              "position": {
+                "start": {
+                  "line": 24,
+                  "column": 63,
+                  "offset": 598
+                },
+                "end": {
+                  "line": 25,
+                  "column": 1,
+                  "offset": 599
+                }
+              }
+            },
+            {
+              "type": "emptyLine",
+              "position": {
+                "start": {
+                  "line": 25,
+                  "column": 1,
+                  "offset": 599
+                },
+                "end": {
+                  "line": 26,
+                  "column": 1,
+                  "offset": 600
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": "      def isMatchDP(self, s: str, p: str) -> bool:",
+              "position": {
+                "start": {
+                  "line": 26,
+                  "column": 1,
+                  "offset": 600
+                },
+                "end": {
+                  "line": 26,
+                  "column": 51,
+                  "offset": 650
+                }
+              }
+            },
+            {
+              "type": "newline",
+              "position": {
+                "start": {
+                  "line": 26,
+                  "column": 51,
+                  "offset": 650
+                },
+                "end": {
+                  "line": 27,
+                  "column": 1,
+                  "offset": 651
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": "          dp = ",
+              "position": {
+                "start": {
+                  "line": 27,
+                  "column": 1,
+                  "offset": 651
+                },
+                "end": {
+                  "line": 27,
+                  "column": 16,
+                  "offset": 666
+                }
+              }
+            },
+            {
+              "type": "opening",
+              "element": "link",
+              "position": {
+                "start": {
+                  "line": 27,
+                  "column": 16,
+                  "offset": 666
+                },
+                "end": {
+                  "line": 27,
+                  "column": 17,
+                  "offset": 667
+                }
+              }
+            },
+            {
+              "type": "link.path",
+              "protocol": "internal",
+              "value": "False",
+              "position": {
+                "start": {
+                  "line": 27,
+                  "column": 17,
+                  "offset": 667
+                },
+                "end": {
+                  "line": 27,
+                  "column": 24,
+                  "offset": 674
+                }
+              }
+            },
+            {
+              "type": "closing",
+              "element": "link",
+              "position": {
+                "start": {
+                  "line": 27,
+                  "column": 66,
+                  "offset": 716
+                },
+                "end": {
+                  "line": 27,
+                  "column": 67,
+                  "offset": 717
+                }
+              }
+            },
+            {
+              "type": "newline",
+              "position": {
+                "start": {
+                  "line": 27,
+                  "column": 67,
+                  "offset": 717
+                },
+                "end": {
+                  "line": 28,
+                  "column": 1,
+                  "offset": 718
+                }
+              }
+            },
+            {
+              "type": "emptyLine",
+              "position": {
+                "start": {
+                  "line": 28,
+                  "column": 1,
+                  "offset": 718
+                },
+                "end": {
+                  "line": 29,
+                  "column": 1,
+                  "offset": 719
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": "          for i in range(0, len(s) + 1):",
+              "position": {
+                "start": {
+                  "line": 29,
+                  "column": 1,
+                  "offset": 719
+                },
+                "end": {
+                  "line": 29,
+                  "column": 41,
+                  "offset": 759
+                }
+              }
+            },
+            {
+              "type": "newline",
+              "position": {
+                "start": {
+                  "line": 29,
+                  "column": 41,
+                  "offset": 759
+                },
+                "end": {
+                  "line": 30,
+                  "column": 1,
+                  "offset": 760
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": "              dp[i][0] = False",
+              "position": {
+                "start": {
+                  "line": 30,
+                  "column": 1,
+                  "offset": 760
+                },
+                "end": {
+                  "line": 30,
+                  "column": 31,
+                  "offset": 790
+                }
+              }
+            },
+            {
+              "type": "newline",
+              "position": {
+                "start": {
+                  "line": 30,
+                  "column": 31,
+                  "offset": 790
+                },
+                "end": {
+                  "line": 31,
+                  "column": 1,
+                  "offset": 791
+                }
+              }
+            },
+            {
+              "type": "emptyLine",
+              "position": {
+                "start": {
+                  "line": 31,
+                  "column": 1,
+                  "offset": 791
+                },
+                "end": {
+                  "line": 32,
+                  "column": 1,
+                  "offset": 792
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": "          dp[0][0] = True",
+              "position": {
+                "start": {
+                  "line": 32,
+                  "column": 1,
+                  "offset": 792
+                },
+                "end": {
+                  "line": 32,
+                  "column": 26,
+                  "offset": 817
+                }
+              }
+            },
+            {
+              "type": "newline",
+              "position": {
+                "start": {
+                  "line": 32,
+                  "column": 26,
+                  "offset": 817
+                },
+                "end": {
+                  "line": 33,
+                  "column": 1,
+                  "offset": 818
+                }
+              }
+            },
+            {
+              "type": "emptyLine",
+              "position": {
+                "start": {
+                  "line": 33,
+                  "column": 1,
+                  "offset": 818
+                },
+                "end": {
+                  "line": 34,
+                  "column": 1,
+                  "offset": 819
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": "          for i in range(0, len(s) + 1):",
+              "position": {
+                "start": {
+                  "line": 34,
+                  "column": 1,
+                  "offset": 819
+                },
+                "end": {
+                  "line": 34,
+                  "column": 41,
+                  "offset": 859
+                }
+              }
+            },
+            {
+              "type": "newline",
+              "position": {
+                "start": {
+                  "line": 34,
+                  "column": 41,
+                  "offset": 859
+                },
+                "end": {
+                  "line": 35,
+                  "column": 1,
+                  "offset": 860
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": "              for j in range(1, len(p) + 1):",
+              "position": {
+                "start": {
+                  "line": 35,
+                  "column": 1,
+                  "offset": 860
+                },
+                "end": {
+                  "line": 35,
+                  "column": 45,
+                  "offset": 904
+                }
+              }
+            },
+            {
+              "type": "newline",
+              "position": {
+                "start": {
+                  "line": 35,
+                  "column": 45,
+                  "offset": 904
+                },
+                "end": {
+                  "line": 36,
+                  "column": 1,
+                  "offset": 905
+                }
+              }
+            },
+            {
+              "type": "emptyLine",
+              "position": {
+                "start": {
+                  "line": 36,
+                  "column": 1,
+                  "offset": 905
+                },
+                "end": {
+                  "line": 37,
+                  "column": 1,
+                  "offset": 906
+                }
+              }
+            },
+            {
+              "type": "comment",
+              "position": {
+                "start": {
+                  "line": 37,
+                  "column": 19,
+                  "offset": 924
+                },
+                "end": {
+                  "line": 37,
+                  "column": 39,
+                  "offset": 944
+                }
+              },
+              "value": "关于递归中的 firstMatch:"
+            },
+            {
+              "type": "comment",
+              "position": {
+                "start": {
+                  "line": 38,
+                  "column": 19,
+                  "offset": 963
+                },
+                "end": {
+                  "line": 38,
+                  "column": 88,
+                  "offset": 1032
+                }
+              },
+              "value": "p[j - 1] 是当前字符，当p[j - 1]是'*'时，firstMatch 应该用 p[j - 2]去做计算firstMatch"
+            },
+            {
+              "type": "comment",
+              "position": {
+                "start": {
+                  "line": 39,
+                  "column": 19,
+                  "offset": 1051
+                },
+                "end": {
+                  "line": 39,
+                  "column": 70,
+                  "offset": 1102
+                }
+              },
+              "value": "否则，用 p[j - 1] 去做计算firstMatch"
+            },
+            {
+              "type": "emptyLine",
+              "position": {
+                "start": {
+                  "line": 40,
+                  "column": 1,
+                  "offset": 1103
+                },
+                "end": {
+                  "line": 41,
+                  "column": 1,
+                  "offset": 1104
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": "                  if p[j - 1] ",
+              "position": {
+                "start": {
+                  "line": 41,
+                  "column": 1,
+                  "offset": 1104
+                },
+                "end": {
+                  "line": 41,
+                  "column": 31,
+                  "offset": 1134
+                }
+              }
+            },
+            {
+              "type": "text",
+              "style": "verbatim",
+              "value": "",
+              "position": {
+                "start": {
+                  "line": 41,
+                  "column": 31,
+                  "offset": 1134
+                },
+                "end": {
+                  "line": 41,
+                  "column": 33,
+                  "offset": 1136
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": " \"*\":",
+              "position": {
+                "start": {
+                  "line": 41,
+                  "column": 33,
+                  "offset": 1136
+                },
+                "end": {
+                  "line": 41,
+                  "column": 38,
+                  "offset": 1141
+                }
+              }
+            },
+            {
+              "type": "newline",
+              "position": {
+                "start": {
+                  "line": 41,
+                  "column": 38,
+                  "offset": 1141
+                },
+                "end": {
+                  "line": 42,
+                  "column": 1,
+                  "offset": 1142
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": "                      dp[i][j] = dp[i][j - 2] or \\",
+              "position": {
+                "start": {
+                  "line": 42,
+                  "column": 1,
+                  "offset": 1142
+                },
+                "end": {
+                  "line": 42,
+                  "column": 51,
+                  "offset": 1192
+                }
+              }
+            },
+            {
+              "type": "newline",
+              "position": {
+                "start": {
+                  "line": 42,
+                  "column": 51,
+                  "offset": 1192
+                },
+                "end": {
+                  "line": 43,
+                  "column": 1,
+                  "offset": 1193
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": "                          (",
+              "position": {
+                "start": {
+                  "line": 43,
+                  "column": 1,
+                  "offset": 1193
+                },
+                "end": {
+                  "line": 43,
+                  "column": 28,
+                  "offset": 1220
+                }
+              }
+            },
+            {
+              "type": "newline",
+              "position": {
+                "start": {
+                  "line": 43,
+                  "column": 28,
+                  "offset": 1220
+                },
+                "end": {
+                  "line": 44,
+                  "column": 1,
+                  "offset": 1221
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": "                              i > 0 and dp[i - 1][j] and",
+              "position": {
+                "start": {
+                  "line": 44,
+                  "column": 1,
+                  "offset": 1221
+                },
+                "end": {
+                  "line": 44,
+                  "column": 57,
+                  "offset": 1277
+                }
+              }
+            },
+            {
+              "type": "newline",
+              "position": {
+                "start": {
+                  "line": 44,
+                  "column": 57,
+                  "offset": 1277
+                },
+                "end": {
+                  "line": 45,
+                  "column": 1,
+                  "offset": 1278
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": "                              (s[i - 1] ",
+              "position": {
+                "start": {
+                  "line": 45,
+                  "column": 1,
+                  "offset": 1278
+                },
+                "end": {
+                  "line": 45,
+                  "column": 41,
+                  "offset": 1318
+                }
+              }
+            },
+            {
+              "type": "text",
+              "style": "verbatim",
+              "value": "",
+              "position": {
+                "start": {
+                  "line": 45,
+                  "column": 41,
+                  "offset": 1318
+                },
+                "end": {
+                  "line": 45,
+                  "column": 43,
+                  "offset": 1320
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": " p[j - 2] or p[j - 2] ",
+              "position": {
+                "start": {
+                  "line": 45,
+                  "column": 43,
+                  "offset": 1320
+                },
+                "end": {
+                  "line": 45,
+                  "column": 65,
+                  "offset": 1342
+                }
+              }
+            },
+            {
+              "type": "text",
+              "style": "verbatim",
+              "value": "",
+              "position": {
+                "start": {
+                  "line": 45,
+                  "column": 65,
+                  "offset": 1342
+                },
+                "end": {
+                  "line": 45,
+                  "column": 67,
+                  "offset": 1344
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": " '.')",
+              "position": {
+                "start": {
+                  "line": 45,
+                  "column": 67,
+                  "offset": 1344
+                },
+                "end": {
+                  "line": 45,
+                  "column": 72,
+                  "offset": 1349
+                }
+              }
+            },
+            {
+              "type": "newline",
+              "position": {
+                "start": {
+                  "line": 45,
+                  "column": 72,
+                  "offset": 1349
+                },
+                "end": {
+                  "line": 46,
+                  "column": 1,
+                  "offset": 1350
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": "                           )",
+              "position": {
+                "start": {
+                  "line": 46,
+                  "column": 1,
+                  "offset": 1350
+                },
+                "end": {
+                  "line": 46,
+                  "column": 29,
+                  "offset": 1378
+                }
+              }
+            },
+            {
+              "type": "newline",
+              "position": {
+                "start": {
+                  "line": 46,
+                  "column": 29,
+                  "offset": 1378
+                },
+                "end": {
+                  "line": 47,
+                  "column": 1,
+                  "offset": 1379
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": "                  else:",
+              "position": {
+                "start": {
+                  "line": 47,
+                  "column": 1,
+                  "offset": 1379
+                },
+                "end": {
+                  "line": 47,
+                  "column": 24,
+                  "offset": 1402
+                }
+              }
+            },
+            {
+              "type": "newline",
+              "position": {
+                "start": {
+                  "line": 47,
+                  "column": 24,
+                  "offset": 1402
+                },
+                "end": {
+                  "line": 48,
+                  "column": 1,
+                  "offset": 1403
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": "                      dp[i][j] = i > 0 and \\",
+              "position": {
+                "start": {
+                  "line": 48,
+                  "column": 1,
+                  "offset": 1403
+                },
+                "end": {
+                  "line": 48,
+                  "column": 45,
+                  "offset": 1447
+                }
+              }
+            },
+            {
+              "type": "newline",
+              "position": {
+                "start": {
+                  "line": 48,
+                  "column": 45,
+                  "offset": 1447
+                },
+                "end": {
+                  "line": 49,
+                  "column": 1,
+                  "offset": 1448
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": "                          (",
+              "position": {
+                "start": {
+                  "line": 49,
+                  "column": 1,
+                  "offset": 1448
+                },
+                "end": {
+                  "line": 49,
+                  "column": 28,
+                  "offset": 1475
+                }
+              }
+            },
+            {
+              "type": "newline",
+              "position": {
+                "start": {
+                  "line": 49,
+                  "column": 28,
+                  "offset": 1475
+                },
+                "end": {
+                  "line": 50,
+                  "column": 1,
+                  "offset": 1476
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": "                              s[i - 1] ",
+              "position": {
+                "start": {
+                  "line": 50,
+                  "column": 1,
+                  "offset": 1476
+                },
+                "end": {
+                  "line": 50,
+                  "column": 40,
+                  "offset": 1515
+                }
+              }
+            },
+            {
+              "type": "text",
+              "style": "verbatim",
+              "value": "",
+              "position": {
+                "start": {
+                  "line": 50,
+                  "column": 40,
+                  "offset": 1515
+                },
+                "end": {
+                  "line": 50,
+                  "column": 42,
+                  "offset": 1517
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": " p[j - 1] or p[j - 1] ",
+              "position": {
+                "start": {
+                  "line": 50,
+                  "column": 42,
+                  "offset": 1517
+                },
+                "end": {
+                  "line": 50,
+                  "column": 64,
+                  "offset": 1539
+                }
+              }
+            },
+            {
+              "type": "text",
+              "style": "verbatim",
+              "value": "",
+              "position": {
+                "start": {
+                  "line": 50,
+                  "column": 64,
+                  "offset": 1539
+                },
+                "end": {
+                  "line": 50,
+                  "column": 66,
+                  "offset": 1541
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": " '.'",
+              "position": {
+                "start": {
+                  "line": 50,
+                  "column": 66,
+                  "offset": 1541
+                },
+                "end": {
+                  "line": 50,
+                  "column": 70,
+                  "offset": 1545
+                }
+              }
+            },
+            {
+              "type": "newline",
+              "position": {
+                "start": {
+                  "line": 50,
+                  "column": 70,
+                  "offset": 1545
+                },
+                "end": {
+                  "line": 51,
+                  "column": 1,
+                  "offset": 1546
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": "                          ) and dp[i - 1][j - 1]",
+              "position": {
+                "start": {
+                  "line": 51,
+                  "column": 1,
+                  "offset": 1546
+                },
+                "end": {
+                  "line": 51,
+                  "column": 49,
+                  "offset": 1594
+                }
+              }
+            },
+            {
+              "type": "newline",
+              "position": {
+                "start": {
+                  "line": 51,
+                  "column": 49,
+                  "offset": 1594
+                },
+                "end": {
+                  "line": 52,
+                  "column": 1,
+                  "offset": 1595
+                }
+              }
+            },
+            {
+              "type": "emptyLine",
+              "position": {
+                "start": {
+                  "line": 52,
+                  "column": 1,
+                  "offset": 1595
+                },
+                "end": {
+                  "line": 53,
+                  "column": 1,
+                  "offset": 1596
+                }
+              }
+            },
+            {
+              "type": "text",
+              "value": "          return dp[len(s)][len(p)]",
+              "position": {
+                "start": {
+                  "line": 53,
+                  "column": 1,
+                  "offset": 1596
+                },
+                "end": {
+                  "line": 53,
+                  "column": 36,
+                  "offset": 1631
+                }
+              }
+            },
+            {
+              "type": "newline",
+              "position": {
+                "start": {
+                  "line": 53,
+                  "column": 36,
+                  "offset": 1631
+                },
+                "end": {
+                  "line": 54,
+                  "column": 1,
+                  "offset": 1632
+                }
+              }
+            },
+            {
+              "type": "block.end",
+              "name": "src",
+              "position": {
+                "start": {
+                  "line": 54,
+                  "column": 1,
+                  "offset": 1632
+                },
+                "end": {
+                  "line": 54,
+                  "column": 11,
+                  "offset": 1642
+                }
+              }
+            }
+          ],
+          "position": {
+            "start": {
+              "line": 12,
+              "column": 1,
+              "offset": 198
+            },
+            "end": {
+              "line": 54,
+              "column": 11,
+              "offset": 1642
+            }
+          }
+        }
+      ],
+      "position": {
+        "start": {
+          "line": 11,
+          "column": 1,
+          "offset": 187
+        },
+        "end": {
+          "line": 54,
+          "column": 11,
+          "offset": 1642
+        }
+      }
+    }
+  ],
+  "position": {
+    "start": {
+      "line": 1,
+      "column": 1,
+      "offset": 0
+    },
+    "end": {
+      "line": 54,
+      "column": 11,
+      "offset": 1642
+    }
+  }
+}

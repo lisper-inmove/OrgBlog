@@ -1,0 +1,90 @@
+#+TITLE: 数组拆分最接近累加和
+#+DATE: 2023-09-27 20:02:06
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: 动态规划
+#+CATEGORIES: 动态规划 算法
+
+* 数组拆分最接近累加和
+#+begin_src python
+  # 给定一个正数数组arr，请把arr中所有的数分成两个集合如果
+  # arr长度为偶数，两个集合包含数的个数要一样多
+  # 如果arr长度为奇数，两个集合包含数的个数必须只差一个
+  # 请尽量让两个集合的累加和接近返回
+  # 最接近的情况下，较小集合的累加和
+
+  # 从数组中取 length / 2个数，使得这个小于等数总和的一半，并返回
+
+
+  def SplitArray(arr):
+
+      summation = sum(arr) / 2
+
+      def process(arr, index, picks, rest):
+          """
+          当前查看第index个数
+          总共还能取picks个数
+          需要凑成总和为rest
+          """
+
+          # 先判断rest，再判断 index，否则有可能出现 rest < 0时返回0的情况
+          if rest < 0:
+              return -1
+
+          if index == len(arr):
+              return 0 if picks == 0 else -1
+
+          # 当前数不取
+          p1 = process(arr, index + 1, picks, rest)
+
+          # 取当前数
+          p2 = process(arr, index + 1, picks - 1, rest - arr[index])
+
+          p2 = p2 + arr[index] if p2 != -1 else p2
+
+          return max(p1, p2)
+
+      length = len(arr)
+      if length & 1 == 0:
+          return process(arr, 0, length / 2, summation)
+      else:
+          return max(process(arr, 0, int(length / 2), summation), process(arr, 0, int(length / 2) + 1, summation))
+
+
+  def SplitArrayDP(arr):
+
+      summation = int(sum(arr) / 2)
+      picks = int((len(arr) + 1) / 2)
+      length = len(arr)
+
+      dp = [[[-1] * (summation + 1) for i in range(0, picks + 1)] for i in range(0, len(arr) + 1)]
+
+      for rest in range(0, summation + 1):
+          dp[len(arr)][0][rest] = 0
+
+      for i in range(length - 1, -1, -1):
+          for j in range(0, picks + 1):
+              for k in range(0, summation + 1):
+                  p1 = dp[i + 1][j][k]
+
+                  p2 = -1
+                  if k - arr[i] >= 0:
+                      p2 = dp[i + 1][j - 1][k - arr[i]]
+                  if p2 != -1:
+                      p2 += arr[i]
+
+                  dp[i][j][k] = max(p1, p2)
+
+      if length & 1 == 0:
+          return dp[0][int(length / 2)][summation]
+      else:
+          return max(dp[0][int(length / 2)][summation], dp[0][int(length / 2) + 1][summation])
+
+
+  if __name__ == '__main__':
+      arr = [100, 1, 1, 1, 1, 1, 99]
+      print(SplitArray(arr))
+      print(SplitArrayDP(arr))
+#+end_src

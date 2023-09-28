@@ -1,0 +1,52 @@
+{
+  "name": "blog",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.11.1",
+    "@emotion/styled": "^11.11.0",
+    "@mui/icons-material": "^5.14.6",
+    "@mui/material": "^5.14.6",
+    "@mui/styled-engine-sc": "^5.14.6",
+    "@mui/system": "^5.14.6",
+    "@tabler/icons-react": "^2.32.0",
+    "@types/node": "20.5.4",
+    "@types/react": "18.2.21",
+    "@types/react-dom": "18.2.7",
+    "autoprefixer": "10.4.15",
+    "bufferutil": "^4.0.7",
+    "canvas": "^2.11.2",
+    "eslint": "8.47.0",
+    "eslint-config-next": "13.4.19",
+    "gray-matter": "^4.0.3",
+    "next": "13.4.19",
+    "next-i18next": "^14.0.0",
+    "orga": "^4.1.0",
+    "postcss": "8.4.28",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "react-icons": "^4.10.1",
+    "react-markdown": "^8.0.7",
+    "react-syntax-highlighter": "^15.5.0",
+    "rehype-mathjax": "^4.0.2",
+    "remark": "^14.0.3",
+    "remark-gfm": "^3.0.1",
+    "remark-html": "^15.0.2",
+    "remark-math": "^5.1.1",
+    "styled-components": "^5.3.11",
+    "tailwindcss": "3.3.3",
+    "ts-node": "^10.9.1",
+    "typescript": "5.1.6",
+    "utf-8-validate": "^6.0.3"
+  },
+  "devDependencies": {
+    "@types/react-syntax-highlighter": "^15.5.7",
+    "webpack-node-externals": "^3.0.0"
+  }
+}

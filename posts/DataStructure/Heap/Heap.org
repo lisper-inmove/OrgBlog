@@ -1,0 +1,104 @@
+#+TITLE: 堆
+#+DATE: 2023-09-28 00:23:51
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: 数据结构 最小堆
+#+CATEGORIES: 堆 数据结构
+
+* 最小堆的实现
+#+begin_src python
+  from collections import deque
+
+  class MinHeap:
+
+      def __init__(self):
+          self.heap = []
+
+      def push(self, data):
+          self.heap.append(data)
+          self.__heapifyUp()
+
+      def pop(self):
+          if len(self.heap) == 0:
+              raise Exception("堆空")
+          popdata = self.heap[0]
+          lastone = self.heap[-1]
+          self.heap[0] = lastone
+          del self.heap[-1]
+          self.__heapifyDown()
+          return popdata
+
+      def peak(self):
+          return self.heap[0]
+
+      def display(self, idx=0, level=0):
+          self.__display(idx, level)
+          print("---------------------------")
+
+      def __display(self, idx=0, level=0):
+          if idx >= len(self.heap):
+              return
+
+          # 打印右子树（在顶部）
+          self.__display(self.__rightChildIndex(idx), level + 1)
+
+          # 打印当前节点
+          print('    ' * level + str(self.heap[idx]))
+
+          # 打印左子树（在底部）
+          self.__display(self.__leftChildIndex(idx), level + 1)
+
+      def __heapifyUp(self, index=None):
+          if index == 0:
+              return
+          if index is None:
+              index = len(self.heap) - 1
+          pindex = self.__parentIndex(index)
+          if self.heap[pindex] > self.heap[index]:
+              self.heap[pindex],  self.heap[index] = self.heap[index], self.heap[pindex]
+              self.__heapifyUp(pindex)
+
+      def __heapifyDown(self, index=None):
+          if index is None:
+              index = 0
+          if index >= len(self.heap):
+              return
+          lindex = self.__leftChildIndex(index)
+          rindex = self.__rightChildIndex(index)
+          smallest = index
+
+          if lindex < len(self.heap) and self.heap[lindex] < self.heap[smallest]:
+              smallest = lindex
+
+          if rindex < len(self.heap) and self.heap[rindex] < self.heap[smallest]:
+              smallest = rindex
+
+          if smallest != index:
+              self.heap[index], self.heap[smallest] = self.heap[smallest], self.heap[index]
+              self.__heapifyDown(smallest)
+
+      def __parentIndex(self, index):
+          return int(index / 2)
+
+      def __leftChildIndex(self, index):
+          return index * 2 + 1
+
+      def __rightChildIndex(self, index):
+          return self.__leftChildIndex(index) + 1
+
+
+  if __name__ == '__main__':
+      heap = MinHeap()
+      heap.push(5)
+      heap.push(3)
+      heap.push(2)
+      heap.push(1)
+      heap.display()
+
+      heap.pop()
+      heap.pop()
+      heap.display()
+
+#+end_src

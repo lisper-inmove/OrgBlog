@@ -1,0 +1,52 @@
+#+TITLE: 链表的逆序
+#+DATE: 2023-09-28 13:41:45
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: 算法 链表
+#+CATEGORIES: 链表 数据结构
+
+* 链表的逆序
+#+begin_src python
+  def reverse(l):
+      if l.isEmpty():
+          return
+      n0, n1 = l.header.next, l.header.next.next
+      while n1:
+          ne = n1.next
+          n1.next = l.header.next
+          n0.next = ne
+          l.header.next = n1
+          n1 = ne
+#+end_src
+* K个一组进行逆序
+#+begin_src python
+  def kreverse(l, k):
+        """
+        将链表每k个一组逆序，最后一组如果不够k个，则不用处理
+        """
+        if k <= 1:
+            return l
+        if k > l.nodeCount:
+            k = k % (l.nodeCount)
+        prev = l.header
+        n0, n1 = l.header.next, l.header.next.next
+        _k = k - 1
+        _reversedCount = 0
+        while True:
+            ne = n1.next
+            n0.next = ne
+            n1.next = prev.next
+            prev.next = n1
+            n1 = ne
+            _k -= 1
+            if _k == 0:
+                _reversedCount += k
+                if l.nodeCount - _reversedCount < k:
+                    break
+                _k = k - 1
+                prev = n0
+                n0 = ne
+                n1 = ne.next
+#+end_src

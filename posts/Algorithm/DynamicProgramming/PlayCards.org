@@ -1,0 +1,130 @@
+#+TITLE: 取卡片
+#+DATE: 2023-09-27 19:42:42
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: 动态规划
+#+CATEGORIES: 动态规划 算法
+
+* Play Cards
+#+begin_src python
+  # 给定一个整型数组arr，代表数值不同的纸牌排成一条线
+  # 玩家A和玩家B依次拿走每张纸牌
+  # 规定玩家A先拿，玩家B后拿
+  # 但是每个玩家每次只能拿走最左或最右的纸牌
+  # 玩家A和玩家B都绝顶聪明
+  # 请返回最后获胜者的分数
+
+  def play_cards(arr):
+
+      if arr is None or len(arr) == 0:
+          return 0
+
+      def first_hand(arr, start, end):
+          if start == end:
+              return arr[start]
+          score1 = arr[start] + second_hand(arr, start + 1, end)
+          score2 = arr[end] + second_hand(arr, start, end - 1)
+          return max(score1, score2)
+
+      def second_hand(arr, start, end):
+          if start == end:
+              return 0
+          score1 = first_hand(arr, start + 1, end)
+          score2 = first_hand(arr, start, end - 1)
+          return min(score1, score2)
+
+      a = first_hand(arr, 0, len(arr) - 1)
+      b = second_hand(arr, 0, len(arr) - 1)
+      if a > b:
+          return a
+      return b
+
+
+  def play_cards_memo(arr):
+
+      if arr is None or len(arr) == 0:
+          return 0
+
+      memo_1 = [[-1] * len(arr) for i in range(0, len(arr) + 1)]
+      memo_2 = [[-1] * len(arr) for i in range(0, len(arr) + 1)]
+
+      def first_hand(arr, start, end, memo_1, memo_2):
+          if memo_1[start][end] != -1:
+              return memo_1[start][end]
+          ans = 0
+          if start == end:
+              ans = arr[start]
+          else:
+              score1 = arr[start] + second_hand(arr, start + 1, end, memo_1, memo_2)
+              score2 = arr[end] + second_hand(arr, start, end - 1, memo_1, memo_2)
+              ans = max(score1, score2)
+          memo_1[start][end] = ans
+          return ans
+
+      def second_hand(arr, start, end, memo_1, memo_2):
+          if memo_2[start][end] != -1:
+              return memo_2[start][end]
+          ans = 0
+          if start != end:
+              score1 = first_hand(arr, start + 1, end, memo_1, memo_2)
+              score2 = first_hand(arr, start, end - 1, memo_1, memo_2)
+              ans = min(score1, score2)
+          memo_2[start][end] = ans
+          return ans
+
+      a = first_hand(arr, 0, len(arr) - 1, memo_1, memo_2)
+      b = second_hand(arr, 0, len(arr) - 1, memo_1, memo_2)
+      if a > b:
+          return a
+      return b
+
+
+  def play_cards_dp(arr):
+      if arr is None or len(arr) == 0:
+          return 0
+      memo_f = [[0] * len(arr) for i in range(0, len(arr) + 1)]
+      memo_s = [[0] * len(arr) for i in range(0, len(arr) + 1)]
+      for i in range(0, len(arr)):
+          memo_f[i][i] = arr[i]
+          memo_s[i][i] = 0
+
+      for col in range(1, len(arr)):
+          _row, _col = 0, col
+          while _col < len(arr):
+              if _row > _col:
+                  break
+              memo_f[_row][_col] = max(arr[_row] + memo_s[_row + 1][_col], arr[_col] + memo_s[_row][_col - 1])
+              memo_s[_row][_col] = min(memo_f[_row + 1][_col],  memo_f[_row][_col - 1])
+              _row += 1
+              _col += 1
+
+      return max(memo_s[0][len(arr) - 1], memo_f[0][len(arr) - 1])
+
+
+  import time
+  import random
+
+  arr = set()
+  for i in range(0, 5):
+      arr.add(random.randint(10, 100))
+  arr = list(arr)
+
+  print(arr)
+
+  start = time.time()
+  a0 = play_cards_memo(arr)
+  print(f"\t记忆化搜索耗时 {a0}: {time.time() - start}")
+
+  start = time.time()
+  a1 = play_cards_dp(arr)
+  print(f"\tdp耗时 {a1}: {time.time() - start}")
+
+  start = time.time()
+  a2 = play_cards(arr)
+  print(f"\t递归耗时 {a2}: {time.time() - start}")
+
+  assert a0 == a1 == a2
+
+#+end_src

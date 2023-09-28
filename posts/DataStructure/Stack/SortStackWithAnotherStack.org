@@ -1,0 +1,33 @@
+#+TITLE: 用一个栈为另一个栈排序
+#+DATE: 2023-09-28 00:37:37
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: 算法 栈
+#+CATEGORIES: 栈 数据结构
+
+* 用栈为另一个栈排序
+#+begin_src python
+  class StackSort:
+
+      def sort(self, stack):
+          help = []
+          while stack:
+              v = stack.pop()
+              if len(help) == 0:
+                  help.append(v)
+              else:
+                  while help and help[-1] < v:
+                      stack.append(help.pop())
+                  help.append(v)
+          while help:
+              stack.append(help.pop())
+
+
+  if __name__ == '__main__':
+      stack = [6, 9, 5, 3]
+      print(f"排序前: {stack}")
+      StackSort().sort(stack)
+      print(f"排序后: {stack}")
+#+end_src
