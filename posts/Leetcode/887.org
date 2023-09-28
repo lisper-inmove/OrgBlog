@@ -1,0 +1,112 @@
+#+TITLE: 887. 鸡蛋掉落
+#+DATE: 2023-10-01 18:37:46
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: DP BinarySearch
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Hard
+
+* Solution
+#+begin_src python
+  class Solution:
+      def superEggDrop(self, k: int, n: int) -> int:
+          return self.recusive(k, n)
+
+      def recusive(self, k, n):
+          """
+          第k个鸡蛋扔在第n层时，最少扔多少次
+          """
+          if k == 1:
+              return n
+          if n == 0:
+              return 0
+
+          min_tries = float('inf')
+
+          for i in range(1, n+1):
+              # 如果此次碎了，就只剩下k-1个蛋了，去下一层做测试
+              break_case = self.recusive(k-1, i-1)
+              # 如果没碎，还剩下k个蛋，去上一层做测试
+              no_break_case = self.recusive(k, n-i)
+
+              # 对于k个鸡蛋, i层楼高的情况。一定能得到一个答案。至少k等于1的时候，一层一层试，总能试到答案
+              # break_case，包含了 f < i 的所有情况
+              # no_break_case，则包含了 f >= i 的所有情况
+              # 所以取最大值，就能涵盖所有的情况
+              worst_case = 1 + max(break_case, no_break_case)
+
+              # 列举1~n层来扔这第k个鸡蛋，所以最后返回一个最小值
+              min_tries = min(min_tries, worst_case)
+          return min_tries
+
+      def dp1(self, k, n):
+          # 使用字典来存储已经计算过的结果，避免重复计算
+          memo = {}
+
+          def helper(k, n):
+              # 如果只有1个鸡蛋，需要从第1层开始逐层测试
+              if k == 1:
+                  return n
+              # 如果没有楼层或只有1层，返回n
+              if n == 0 or n == 1:
+                  return n
+
+              # 如果这个状态已经计算过，直接返回结果
+              if (k, n) in memo:
+                  return memo[(k, n)]
+
+              # 使用二分搜索来加速计算
+              low, high, result = 1, n, n
+              while low <= high:
+                  mid = (low + high) // 2
+
+                  # 当鸡蛋破裂时，我们需要在下面的楼层继续测试
+                  breaks = helper(k - 1, mid - 1)
+                  # 当鸡蛋没有破裂时，我们需要在上面的楼层继续测试
+                  not_break = helper(k, n - mid)
+
+                  # 我们需要的是最坏情况下的移动次数，所以取两者中的最大值
+                  worst = 1 + max(breaks, not_break)
+
+                  # 使用二分搜索来调整搜索范围
+                  if breaks > not_break:
+                      high = mid - 1
+                      result = min(result, worst)
+                  else:
+                      low = mid + 1
+                      result = min(result, worst)
+
+              # 保存结果并返回
+              memo[(k, n)] = result
+              return result
+
+          return helper(k, n)
+
+      def dp2(k, n):
+          if n == 0:
+              return 0
+          if k == 1:
+              return n
+          # 有k个鸡蛋，能操作m次，能确定的最大楼层数
+          dp = [[0] * (n + 1) for _ in range(k + 1)]
+          m = 0
+          while dp[k][m] < n:
+              m += 1
+              for i in range(1, k + 1):
+                  dp[i][m] = dp[i - 1][m - 1] + dp[i][m - 1] + 1
+          return m
+
+      def dp3(self, k, n):
+          """就是dp2的一个空间优化
+          因为dp[i][m] 只依赖dp[i - 1][m - 1] 和 dp[i][m - 1]
+          """
+          moves = 0
+          dp = [0] * (k + 1)
+          while(dp[k] < n):
+              for x in xrange(k, 0, -1):
+                  dp[x] = dp[x] + dp[x - 1] + 1
+              moves += 1
+          return moves
+#+end_src

@@ -1,0 +1,74 @@
+#+TITLE: 64. (LCP) 二叉树灯饰
+#+DATE: 2023-10-01 02:18:27
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: Leetcode BinaryTree
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Medium
+
+* Solution
+
+[[https://leetcode.cn/problems/U7WvvU/solutions/1846444/c-jian-dan-de-zuo-you-di-gui-fen-zhi-jiu-2oil/][Refer]]
+
+#+begin_src python
+  class TreeNode:
+      def __init__(self, x):
+          self.val = x
+          self.left = None
+          self.right = None
+
+  class Solution:
+      def closeLampInTree(self, root: TreeNode) -> int:
+
+          def get_by_flag(flag, v1, v2):
+              if flag:
+                  return v1
+              return v2
+
+          def dfs(root):
+              if root is None:
+                  return 0, 0, 0, 0
+              # la: 全灭 lb: 根亮 lc: 全亮 ld: 除了根全亮  (ra, rb, rc, rd也相同)
+              la, lb, lc, ld = dfs(root.left)
+              ra, rb, rc, rd = dfs(root.right)
+              flag = root.val == 1
+
+              # 根据子树的状态来判断当前根结点要做什么操作。
+
+              # 计算全灭: 操作完成之后，以当前结点为根的树必须全是灭的
+              rootA = min(
+                  la + ra + get_by_flag(flag, 1, 0),
+                  lb + rb + get_by_flag(flag, 1, 2),
+                  lc + rc + get_by_flag(flag, 1, 2),
+                  ld + rd + get_by_flag(flag, 3, 2),
+              )
+
+              # 计算根亮
+              rootB = min(
+                  la + ra + get_by_flag(flag, 0, 1),
+                  lb + rb + get_by_flag(flag, 2, 1),
+                  lc + rc + get_by_flag(flag, 2, 1),
+                  ld + rd + get_by_flag(flag, 2, 3),
+              )
+
+              # 计算全亮
+              rootC = min(
+                  la + ra + get_by_flag(flag, 2, 1),
+                  lb + rb + get_by_flag(flag, 2, 3),
+                  lc + rc + get_by_flag(flag, 0, 1),
+                  ld + rd + get_by_flag(flag, 2, 1),
+              )
+
+              # 计算除了根全亮
+              rootD = min(
+                  la + ra + get_by_flag(flag, 1, 2),
+                  lb + rb + get_by_flag(flag, 3, 2),
+                  lc + rc + get_by_flag(flag, 1, 0),
+                  ld + rd + get_by_flag(flag, 1, 2),
+              )
+              return rootA, rootB, rootC, rootD
+          a, b, c, d = dfs(root)
+          return min(a, b + 1, c + 1, d + 2)
+#+end_src

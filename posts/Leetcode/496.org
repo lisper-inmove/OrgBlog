@@ -1,0 +1,31 @@
+#+TITLE: 496. 下一个更大元素I
+#+DATE: 2023-10-01 02:49:40
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: Leetcode
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Easy
+
+* Solution
+
+https://leetcode.cn/problems/next-greater-element-i/description/
+
+#+begin_src python
+  from typing import List
+
+  class Solution:
+      def nextGreaterElement(self, nums1: List[int], nums2: List[int]) -> List[int]:
+          rmax = {}
+          stack = []  # 递增(Stack顶是最小的数)
+
+          for i in range(0, len(nums2)):
+              while stack and nums2[stack[-1]] < nums2[i]:
+                  rmax[nums2[stack.pop()]] = nums2[i]
+              stack.append(i)
+          result = []
+          for num in nums1:
+              result.append(rmax.get(num, -1))
+          return result
+#+end_src

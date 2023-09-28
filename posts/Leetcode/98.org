@@ -1,0 +1,51 @@
+#+TITLE: 98. 验证二叉搜索树
+#+DATE: 2023-10-04 00:56:30
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: BinarySearchTree
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Medium
+
+* Solution
+#+begin_src python
+  from typing import Optional
+
+  class TreeNode:
+      def __init__(self, val=0, left=None, right=None):
+          self.val = val
+          self.left = left
+          self.right = right
+
+  class Solution:
+      def isValidBST(self, root: Optional[TreeNode]) -> bool:
+          return self.isValidBSTRecusive(root, float('-inf'), float('inf'))
+
+      def isValidBSTRecusive(self, root: TreeNode, minValue: float, maxValue: float) -> bool:
+          if root is None:
+              return True
+          if not (minValue < root.val < maxValue):
+              return False
+          return self.isValidBSTRecusive(root.left, minValue, root.val) and \
+              self.isValidBSTRecusive(root.right, root.val, maxValue)
+
+      def isValibBST2(self, root: Optional[TreeNode]) -> bool:
+          """
+          利用中序遍历的特性。
+          如果是二叉搜索树，在先序遍历过程中，前一个节点一定比后一个节点要小。
+          """
+          if not root:
+              return True
+          stack = []
+          pre = float('-inf')
+          while root or stack:
+              while root:
+                  stack.append(root)
+                  root = root.left
+              root = stack.pop()
+              if root.val <= pre:
+                  return False
+              root = root.right
+          return True
+#+end_src

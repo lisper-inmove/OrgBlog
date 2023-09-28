@@ -1,0 +1,54 @@
+#+TITLE: 85. 最大矩形
+#+DATE: 2023-10-01 00:28:29
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: Leetcode MonotoneStack
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Hard
+
+* Solution
+
+|   |   |   |   |   |
+|---|---|---|---|---|
+| 1 | 0 | 1 | 0 | 0 |
+| 1 | 0 | 1 | 1 | 1 |
+| 1 | 1 | 1 | 1 | 1 |
+| 1 | 0 | 0 | 1 | 0 |
+
+从上到下，依次将第i层看做最后一层。
+
+heights用于记录，从当前行开始，当前列向上连续1的个数。
+
+#+begin_src python
+  from typing import List
+
+  class Solution:
+      def maximalRectangle(self, matrix: List[List[str]]) -> int:
+          if not matrix:
+              return 0
+          m, n = len(matrix), len(matrix[0])
+
+          heights = [0] * n
+          area = 0
+
+          for i in range(0, m):
+              for j in range(0, n):
+                  heights[j] += 1 if matrix[i][j] == '1' else -heights[j]
+
+              stack = []
+              for j in range(0, n):
+                  while stack and heights[stack[-1]] > heights[j]:
+                      h = heights[stack.pop()]
+                      w = j if len(stack) == 0 else j - stack[-1] - 1
+                      area = max(area, h * w)
+                  stack.append(j)
+
+              while stack:
+                  h = heights[stack.pop()]
+                  w = n if len(stack) == 0 else n - stack[-1] - 1
+                  area = max(area, h * w)
+          return area
+
+#+end_src

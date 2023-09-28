@@ -4,6 +4,7 @@
 #+STARTUP: indent
 #+OPTIONS: toc:10
 #+AUTHOR: inmove
+#+SUBTITLE: Git不常用的使用场景
 #+KEYWORDS: Git
 #+CATEGORIES: Git
 

@@ -1,0 +1,140 @@
+#+TITLE: 装饰器
+#+DATE: 2023-10-02 02:45:18
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+SUBTITLE: 装饰器的三种写法
+#+KEYWORDS: Decorator
+#+CATEGORIES: Python
+
+* 装饰器的三种写法
+
+一定要使用wraps来保留原始函数的metadata
+
+#+begin_src python
+  from functools import wraps
+
+  def decorator1(fn):
+      print("decorator1 是一个不带参数的装饰器。这一行会在加载这个Python文件时就输出")
+      def inner(*args, **kargs):
+          print(f"Before Call function decorator1: {fn.__name__} {fn.__doc__}")
+          result = fn(*args, **kargs)
+          print("After call function decorator1")
+          return result
+      return inner
+
+  def decorator2(**dargs):
+      print("decorator2 是一个可以传参数的装饰器。这一行会在加载这个Python文件时就输出")
+      def inner(fn):
+          @wraps(fn)
+          def inner(*args, **kargs):
+              print("Before Call function decorator2")
+              result = fn(*args, **kargs)
+              print(f"After call function decorator2: {dargs}")
+              return result
+          return inner
+      return inner
+
+  class Decorator3:
+
+      def __init__(self, *args, **kargs):
+          print(f"Decorator3 是一个类装饰器 {args} {kargs}")
+          self.kargs = kargs
+
+      def __call__(self, fn):
+          # @wraps(fn)
+          def inner(*args, **kargs):
+              print("Before call function Decorator3")
+              result = fn(*args, **kargs)
+              print(f"After call function Decorator3: {self.kargs}")
+              return result
+          return inner
+
+
+  """
+  等价于 test1 = decorator1(test1)
+  """
+  @decorator1
+  def test1(age, name=None):
+      """这是我的__doc__"""
+      print(f"test1: age: {age}, name: {name}")
+
+
+  @decorator2(nocache=True)
+  def test2(age, name=None):
+      print(f"test2: age: {age}, name: {name}")
+
+  @Decorator3(withDate=True)
+  def test3(age, name=None):
+      print(f"test3: age: {age}, name: {name}")
+
+
+  if __name__ == '__main__':
+      print("-----------------------Before Call Test---------------------------")
+      test1(33, "inmove")
+      print(f"没有使用wraps 函数名变了 {test1.__name__}")
+      print("--------------------------------------------------")
+      test2(33, "inmove")
+      print(f"使用wraps 函数名没变 {test2.__name__}")
+      print("--------------------------------------------------")
+      test3(33, "inmove")
+      print(f"test3 -> {test3.__name__}")
+
+#+end_src
+* 一些常用的装饰器
+** dataclasses.dataclass
+#+begin_src python
+  from dataclasses import dataclass
+
+
+  @dataclass(frozen=True)  # frozen让成员变量不可更改
+  class Point:
+      x: float = 0.0  # 可以为成员添加类型注解
+      y: float = 0.0
+
+
+  """
+  class Point(builtins.object)
+   |  Point(x: float = 0.0, y: float = 0.0) -> None
+   |
+   |  Point(x: float = 0.0, y: float = 0.0)
+   |
+   |  Methods defined here:
+   |
+   |  __eq__(self, other)
+   |      Return self==value.
+   |
+   |  __init__(self, x: float = 0.0, y: float = 0.0) -> None
+   |      Initialize self.  See help(type(self)) for accurate signature.
+   |
+   |  __repr__(self)
+   |      Return repr(self).
+   |
+   |  ----------------------------------------------------------------------
+   |  Data descriptors defined here:
+   |
+   |  __dict__
+   |      dictionary for instance variables (if defined)
+   |
+   |  __weakref__
+   |      list of weak references to the object (if defined)
+   |
+   |  ----------------------------------------------------------------------
+   |  Data and other attributes defined here:
+   |
+   |  __annotations__ = {'x': <class 'float'>, 'y': <class 'float'>}
+   |
+   |  __dataclass_fields__ = {'x': Field(name='x',type=<class 'float'>,defau...
+   |
+   |  __dataclass_params__ = _DataclassParams(init=True,repr=True,eq=True,or...
+   |
+   |  __hash__ = None
+   |
+   |  __match_args__ = ('x', 'y')
+   |
+   |  x = 0.0
+   |
+   |  y = 0.0
+  """
+#+end_src

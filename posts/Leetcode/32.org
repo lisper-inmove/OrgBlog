@@ -1,0 +1,83 @@
+#+TITLE: 32. 最长有效括号
+#+DATE: 2023-10-06 20:43:38
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: Stack
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Hard
+
+* Solution
+#+NAME: longestValidParentheses.py
+#+begin_src python :results output
+  class Solution:
+      def longestValidParentheses(self, s: str) -> int:
+          return self.stackVersion(s)
+
+      def stackVersion(self, s):
+          stack = []
+          longest = 0
+          start = 0
+          for index, b in enumerate(s):
+              if b == '(':
+                  stack.append(index)
+              else:
+                  if not stack:
+                      # 栈为空表示没有'(' 与之匹配
+                      # 后面再有匹配至少从index+1开始了
+                      start = index + 1
+                  else:
+                      # 弹出一个'('
+                      stack.pop()
+                      if stack:
+                          # 如果栈中还有'('
+                          # 那么 从 stack[-1] 到 index 的所有括号都匹配上了。所以长度应该为 index - stack[-1]
+                          longest = max(longest, index - stack[-1])
+                      else:
+                          # 栈中最后一个'('被使用了
+                          longest = max(longest, index - start + 1)
+          return longest
+
+      def recursive(self, s):
+
+          def helper(left, right):
+              if left > right:
+                  return 0
+              if isValid(left, right):
+                  return right - left + 1
+
+              o1 = helper(left + 1, right)
+              o2 = helper(left, right - 1)
+              return max(o1, o2)
+
+          def isValid(left, right):
+              stack = []
+              for i in range(left, right + 1):
+                  if s[i] == '(':
+                      stack.append('(')
+                  else:
+                      if stack:
+                          stack.pop()
+                      else:
+                          return False
+              return len(stack) == 0
+
+          return helper(0, len(s) - 1)
+
+      def dp(self, s):
+          n = len(s)
+          longest = 0
+          dp = [0] * n  # 索引为i的字符的作为结尾的最长有效括号
+          for i in range(1, n):
+              if s[i] == ')':
+                  if s[i - 1] == '(':
+                      dp[i] = (dp[i - 2] if i - 2 >= 0 else 0) + 2
+                  elif i - dp[i - 1] > 0 and s[i - dp[i - 1] - 1] == '(':
+                      dp[i] = dp[i - 1] + (dp[i - dp[i - 1] - 2] if i - dp[i - 1] >= 2 else 0) + 2
+                  longest = max(longest, dp[i])
+          return longest
+
+#+end_src
+
+#+RESULTS: longestValidParentheses.py

@@ -1,0 +1,39 @@
+#+TITLE: 402. 移掉K位数字
+#+DATE: 2023-09-27 21:59:43
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: Leetcode MonotonicStack
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Medium
+
+* 移掉K位数字
+
+https://leetcode.cn/problems/remove-k-digits
+
+#+begin_src python
+  class Solution:
+      def removeKdigits(self, num: str, k: int) -> str:
+          if len(num) == 0:
+              return "0"
+          stack = []
+
+          # 前面的数字越小越好。所以当s比Stack顶数字要小时，就把Stack顶的数字移出。移出的数不能超过k个
+          for s in num:
+              while stack and int(stack[-1]) > int(s) and k > 0:
+                  stack.pop()
+                  k -= 1
+              stack.append(s)
+          # 还没有移除k个数，那么就把较大的数移出。因为是MonotonicStack，Stack顶的数字是最大的
+          while k > 0:
+              stack.pop()
+              k -= 1
+
+          # 去掉前导0
+          result = "".join(stack)
+          result = result.lstrip('0')
+          if result == "":
+              return "0"
+          return result
+#+end_src

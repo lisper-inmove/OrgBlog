@@ -25,16 +25,24 @@ export default function RootLayout({
 
       <body
         className="flex flex-col h-screen"
-        style={{ backgroundColor: Constants.mainBgColor }}
+        style={{ backgroundColor: Constants.bodyBgColor }}
       >
 
         <header className="text-white text-center">
           <Navbar options={postsMetadata}/>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-5 mx-auto w-5/6">
+        <main className="overflow-y-auto ml-5 mr-10 mt-2 mb-2 h-screen">
           {children}
         </main>
+
+        <footer className="bottom-0 w-full text-center" style={{
+            backgroundColor: Constants.footerBgColor,
+            color: "white",
+            boxShadow: '-10px 0px 13px -7px #000000, 10px 0px 13px -7px #000000, 35px -23px 2px -16px rgba(0, 0, 0, 0)',
+          }}>
+          粵ICP备2023000078号
+        </footer>
 
       </body>
     </html>

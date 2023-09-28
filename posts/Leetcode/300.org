@@ -1,0 +1,26 @@
+#+TITLE: 300. 最长递增子序列
+#+DATE: 2023-10-08 08:30:57
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: DynamicProgramming
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Medium
+
+* Solution
+#+NAME: 300.py
+#+begin_src python :results output
+  from typing import List
+
+  class Solution:
+      def lengthOfLIS(self, nums: List[int]) -> int:
+          memo = [1] * len(nums)
+          maxValue = 1
+          for i in range(0, len(nums)):
+              for j in range(0, i):
+                  if nums[j] < nums[i]:
+                      memo[i] = max(memo[i], memo[j] + 1)
+              maxValue = max(memo[i], maxValue)
+          return maxValue
+#+end_src

@@ -1,0 +1,111 @@
+#+TITLE: Pydantic
+#+DATE: 2023-10-02 03:08:01
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+SUBTITLE: Pydantic类的使用
+#+KEYWORDS: Pydantic
+#+CATEGORIES: Python
+
+* Pydantic
+
+Pydantic 是一个数据验证和设置管理的 Python 库，它使用 Python 类型注解来验证数据。Pydantic 主要用于数据验证和数据序列化/反序列化。
+
+#+begin_src python :results output
+  from datetime import datetime
+
+  from typing import Annotated, Dict, List, Literal, Tuple
+
+  from annotated_types import Gt
+
+  from pydantic import BaseModel
+  from pydantic import NegativeFloat
+  from pydantic import EmailStr
+  from pydantic import NameEmail
+  from pydantic import FilePath
+  from pydantic import DirectoryPath
+  from pydantic import HttpUrl
+  from pydantic import IPvAnyAddress
+  from pydantic import ConstrainedStr
+  from pydantic import ConstrainedInt
+  from pydantic import Json
+  from pydantic import SecretStr
+  from pydantic import PositiveInt
+  from pydantic import NegativeInt
+  from pydantic import validator
+
+  class CustomString(ConstrainedStr):
+      min_length = 5
+      max_length = 20
+
+  class CustomInt(ConstrainedInt):
+      gt = 10
+      lt = 20
+
+
+  class Example(BaseModel):
+
+      a: Literal['red', 'green']
+      b: Annotated[float, Gt(0)]
+      c: Dict[str, List[Tuple[int, bool, float]]]
+      d: datetime | None
+      e: Dict[str, PositiveInt]
+
+      f: str
+      f1: CustomString
+      h: NegativeFloat
+      i: int
+      j: CustomInt
+      k: NegativeInt
+
+      email: EmailStr
+      nameEmail: NameEmail
+      path: FilePath
+      directory: DirectoryPath
+      url: HttpUrl
+      ipaddr: IPvAnyAddress
+      jsonData: Json
+      secret: SecretStr
+
+      # 只有在创建新的对象的时候会验证，后面重新赋值的时候不会。
+      @validator("i")
+      def validate_weight(cls, weight):
+          if weight < 0:
+              raise ValueError("Weight 必须是一个正数.")
+          return weight
+
+  f = Example(
+      a='red',
+      b=4.2,
+      c={'foobar': [(1, True, 0.1)]},
+      d="2020-01-01T03:03:03",
+      e={"a": 10},
+
+      f="iiiiii",
+      f1="abcdef", # 限制长度的字符串
+      h=-1.1,
+      i=10,
+      j=15, # 限制范围的数字
+      k=-10,
+      email="lisper.inmove@gmail.com",
+      nameEmail="inmove@gmail.com",   # NameEmail(name='inmove', email='inmove@gmail.com')
+      path="/home/inmove/.zshrc",     # 必须在本地目录存在
+      directory="/home/inmove/code",  # 必须存在
+      url="https://blog.inmove.top",
+      ipaddr="127.0.0.1",
+      jsonData='{"key": "value"}',
+      secret="aoestuhs"
+  )
+
+  print(f)
+  print(f.json())
+  print(f.dict())
+  print(f.secret.get_secret_value())
+#+end_src
+
+#+RESULTS:
+: a='red' b=4.2 c={'foobar': [(1, True, 0.1)]} d=datetime.datetime(2020, 1, 1, 3, 3, 3) e={'a': 10} f='iiiiii' f1='abcdef' h=-1.1 i=10 j=15 k=-10 email='lisper.inmove@gmail.com' nameEmail=NameEmail(name='inmove', email='inmove@gmail.com') path=PosixPath('/home/inmove/.zshrc') directory=PosixPath('/home/inmove/code') url=HttpUrl('https://blog.inmove.top', ) ipaddr=IPv4Address('127.0.0.1') jsonData={'key': 'value'} secret=SecretStr('**********')
+: {"a": "red", "b": 4.2, "c": {"foobar": [[1, true, 0.1]]}, "d": "2020-01-01T03:03:03", "e": {"a": 10}, "f": "iiiiii", "f1": "abcdef", "h": -1.1, "i": 10, "j": 15, "k": -10, "email": "lisper.inmove@gmail.com", "nameEmail": "inmove <inmove@gmail.com>", "path": "/home/inmove/.zshrc", "directory": "/home/inmove/code", "url": "https://blog.inmove.top", "ipaddr": "127.0.0.1", "jsonData": {"key": "value"}, "secret": "**********"}
+: {'a': 'red', 'b': 4.2, 'c': {'foobar': [(1, True, 0.1)]}, 'd': datetime.datetime(2020, 1, 1, 3, 3, 3), 'e': {'a': 10}, 'f': 'iiiiii', 'f1': 'abcdef', 'h': -1.1, 'i': 10, 'j': 15, 'k': -10, 'email': 'lisper.inmove@gmail.com', 'nameEmail': NameEmail(name='inmove', email='inmove@gmail.com'), 'path': PosixPath('/home/inmove/.zshrc'), 'directory': PosixPath('/home/inmove/code'), 'url': HttpUrl('https://blog.inmove.top', ), 'ipaddr': IPv4Address('127.0.0.1'), 'jsonData': {'key': 'value'}, 'secret': SecretStr('**********')}
+: aoestuhs

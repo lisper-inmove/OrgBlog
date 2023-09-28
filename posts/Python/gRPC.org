@@ -1,0 +1,413 @@
+#+TITLE: gRPC
+#+DATE: 2023-09-27 23:55:53
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+SUBTITLE: 用Python实现4种gRPC的使用方法 使用Nginx配置gRPC
+#+KEYWORDS: Python
+#+CATEGORIES: Python
+
+* 安装依赖
+
+#+begin_src shell
+  python -m pip install grpcio
+  python -m pip install grpcio-tools
+  python -m grpc_tools.protoc --python_out=. --grpc_python_out=. -I. xxx.proto
+#+end_src
+
+* 定义proto文件
+
+#+begin_src protobuf
+  syntax = "proto3";
+
+  service Hello {
+    // 客户端发一条消息,服务端回一条消息
+    rpc SayHello (HelloRequest) returns (HelloResponse);
+    // 客户端发一条消息,服务端回数组消息
+    rpc LotsOfReplies(HelloRequest) returns (stream HelloResponse);
+    // 客户端发数组消息,服务端回单条消息
+    rpc LotsOfGreetings(stream HelloRequest) returns (HelloResponse);
+    // 客户端发数组消息,服务端回数组消息
+    rpc BidiHello(stream HelloRequest) returns (stream HelloResponse);
+  }
+
+  message HelloRequest {
+    string greeting = 1;
+  }
+
+  message HelloResponse {
+    string reply = 1;
+  }
+
+#+end_src
+
+* 在Python中使用gRPC的例子
+** 客户端发送一个请求，服务端回一条请求(Client Unary && Server Unary)
+*** 服务端
+#+begin_src python
+  # -*- coding: utf-8 -*-
+
+  import random
+  import time
+  from datetime import datetime
+
+  from concurrent import futures
+
+  import grpc
+  import hello_pb2
+  import hello_pb2_grpc
+
+  total = 0
+
+  class Hello(hello_pb2_grpc.HelloServicer):
+
+      def SayHello(self, request, context):
+          # 5. 提供给客户端调用的函数
+          global total
+          total += 1
+          print(f">>>> {total} >>> {request} {context} {datetime.now()}")
+          time.sleep(random.randint(1, 10) / float(10))
+          return hello_pb2.HelloResponse(reply='Hello, %s!' % request.greeting)
+
+  def serve():
+      port = '50051'
+      # 1. 创建服务
+      server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+      # 2. 添加服务提供者
+      hello_pb2_grpc.add_HelloServicer_to_server(Hello(), server)
+      # 3. 监听端口
+      server.add_insecure_port('[::]:' + port)
+      # 4. 启动服务
+      server.start()
+      print("Server started, listening on " + port)
+      server.wait_for_termination()
+
+
+  if __name__ == '__main__':
+      serve()
+
+#+end_src
+*** 客户端
+#+begin_src python
+  # -*- coding: utf-8 -*-
+
+  import grpc
+  import hello_pb2
+  import hello_pb2_grpc
+
+
+  def run():
+      print("Will try to greet world ...")
+      # 1. 创建一条通道与服务端连接
+      with grpc.insecure_channel('localhost:50051') as channel:
+          # 2. 创建一条存根(就当作是创建了一个Hello类)
+          stub = hello_pb2_grpc.HelloStub(channel)
+          # 3. 调用服务提供的函数,并返回结果
+          response = stub.SayHello(hello_pb2.HelloRequest(greeting='inmove'))
+      print("Greeter client received: " + response.reply)
+
+  if __name__ == '__main__':
+      run()
+#+end_src
+
+** 客户端发送一条消息,服务端回数条消息(Client Unary && Server Stream)
+*** 服务端
+#+begin_src python
+  # -*- coding: utf-8 -*-
+
+  from concurrent import futures
+
+  import grpc
+  from hello_pb2 import HelloResponse
+  from hello_pb2_grpc import HelloServicer
+
+  import hello_pb2_grpc
+
+  NUMBER_OF_REPLY = 10
+
+  class Hello(HelloServicer):
+
+      def LotsOfReplies(self, request, context):
+          print(f"Serving sayHello request {request} {context}", )
+          for i in range(NUMBER_OF_REPLY):
+              yield HelloResponse(reply=f"Hello number {i}, {request.greeting}!")
+
+  def serve() -> None:
+      server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+      hello_pb2_grpc.add_HelloServicer_to_server(Hello(), server)
+      listen_addr = "[::]:50051"
+      server.add_insecure_port(listen_addr)
+      print("Starting server on %s", listen_addr)
+      server.start()
+      server.wait_for_termination()
+
+  if __name__ == "__main__":
+      serve()
+
+#+end_src
+#+begin_src python
+  # -*- coding: utf-8 -*-
+
+  import grpc
+  from hello_pb2 import HelloRequest
+
+  import hello_pb2_grpc
+
+  def run() -> None:
+      with grpc.insecure_channel("localhost:50051") as channel:
+          stub = hello_pb2_grpc.HelloStub(channel)
+
+          # Read from an async generator
+          for response in stub.LotsOfReplies(
+              HelloRequest(greeting="inmove")):
+              print("Greeter client received from async generator: " + response.reply)
+
+  if __name__ == "__main__":
+      run()
+
+#+end_src
+** 客户端发送消息数组,服务端回一条消息(Client Stream && Server Unary)
+*** 服务端
+#+begin_src python
+  # -*- coding: utf-8 -*-
+
+  from concurrent import futures
+
+  import grpc
+  from hello_pb2 import HelloResponse
+  from hello_pb2_grpc import HelloServicer
+
+  import hello_pb2_grpc
+
+  NUMBER_OF_REPLY = 10
+
+  class Hello(HelloServicer):
+
+      def LotsOfGreetings(self, request_iterator, context):
+          for request in request_iterator:
+              print(f"Serving LotsOfGreetings request {request} {context}", )
+          return HelloResponse(reply="Hello number inmove!")
+
+  def serve() -> None:
+      server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+      hello_pb2_grpc.add_HelloServicer_to_server(Hello(), server)
+      listen_addr = "[::]:50051"
+      server.add_insecure_port(listen_addr)
+      print("Starting server on %s", listen_addr)
+      server.start()
+      server.wait_for_termination()
+
+  if __name__ == "__main__":
+      serve()
+#+end_src
+*** 客户端
+#+begin_src python
+  # -*- coding: utf-8 -*-
+
+  import grpc
+  from hello_pb2 import HelloRequest
+
+  import hello_pb2_grpc
+
+  def run() -> None:
+      with grpc.insecure_channel("localhost:50051") as channel:
+          stub = hello_pb2_grpc.HelloStub(channel)
+
+          rs = [
+              HelloRequest(greeting="inmove1"),
+              HelloRequest(greeting="inmove2"),
+          ]
+
+          # Read from an async generator
+          response = stub.LotsOfGreetings(iter((rs))) ##### >>>>>> 一定要用 iter这样写 <<<<<<##########
+          print("Greeter client received from async generator: " + response.reply)
+
+  if __name__ == "__main__":
+      run()
+#+end_src
+** 客户端发送消息数组,服务端回复消息数组(Client Stream && Server Stream)
+*** 服务端
+#+begin_src python
+  # -*- coding: utf-8 -*-
+
+  from concurrent import futures
+
+  import grpc
+  from hello_pb2 import HelloResponse
+  from hello_pb2_grpc import HelloServicer
+
+  import hello_pb2_grpc
+
+  class Hello(HelloServicer):
+
+      def BidiHello(self, request_iter, context):
+          print(f"Serving BidiHello request {request_iter} {context}", )
+          for request in request_iter:
+              yield HelloResponse(reply=f"Hello number {request.greeting}!")
+
+  def serve() -> None:
+      server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+      hello_pb2_grpc.add_HelloServicer_to_server(Hello(), server)
+      listen_addr = "[::]:50051"
+      server.add_insecure_port(listen_addr)
+      print("Starting server on %s", listen_addr)
+      server.start()
+      server.wait_for_termination()
+
+  if __name__ == "__main__":
+      serve()
+#+end_src
+*** 客户端
+#+begin_src python
+  # -*- coding: utf-8 -*-
+
+  import grpc
+  from hello_pb2 import HelloRequest
+
+  import hello_pb2_grpc
+
+
+  def run() -> None:
+      with grpc.insecure_channel("localhost:50051") as channel:
+          stub = hello_pb2_grpc.HelloStub(channel)
+
+          rs = [
+              HelloRequest(greeting="inmove1"),
+              HelloRequest(greeting="inmove2"),
+          ]
+
+          # Read from an async generator
+          for response in stub.BidiHello(iter((rs))): ##### >>>>>> 一定要用 iter这样写 <<<<<<##########
+              print("Greeter client received from async generator: " + response.reply)
+
+  if __name__ == "__main__":
+      run()
+#+end_src
+** secure client
+#+begin_src python
+  # -*- coding: utf-8 -*-
+
+  import grpc
+  import proto.grpc_api.grpc_chatgpt_pb2 as grpc_chatgpt_pb
+  import proto.grpc_api.grpc_chatgpt_pb2_grpc as grpc_chatgpt_pb_grpc
+
+
+  def run():
+
+      # # 如果是自签证书的话需要root_certificates参数的加持
+      # trusted_certs = ""
+      # with open("/home/inmove/pki/ChatGPTClient/cert.pem", "rb") as f:
+      #     trusted_certs = f.read()
+      # with grpc.secure_channel(self.CHATGPT_CLIENT_HOST, grpc.ssl_channel_credentials(root_certificates=trusted_certs)) as channel:
+
+      # 1. 创建一条通道与服务端连接
+      with grpc.secure_channel('chat.inmove.top:8443', grpc.ssl_channel_credentials()) as channel:
+          # 2. 创建一条存根(就当作是创建了一个Hello类)
+          stub = grpc_chatgpt_pb_grpc.ChatGPTStub(channel)
+          # 3. 调用服务提供的函数,并返回结果
+          for response in stub.ChatCompletion(grpc_chatgpt_pb.ChatCompletionRequest(
+              messages=[
+                  grpc_chatgpt_pb.ChatCompletionRequest.ChatCompletionMessage(
+                      role="user",
+                      content="An solution for leetcode 1001 using Rust"
+                  )
+              ]
+          )):
+              print(f"role: {response}")
+#+end_src
+** 协程服务器
+#+begin_src python
+  # -*- coding: utf-8 -*-
+
+
+  import asyncio
+  import random
+
+  import time
+  from datetime import datetime
+
+  import grpc
+  import hello_pb2
+  import hello_pb2_grpc
+
+  total = 0
+
+  class Hello(hello_pb2_grpc.HelloServicer):
+
+      async def SayHello(self, request, context):
+          # 5. 提供给客户端调用的函数
+          global total
+          total += 1
+          print(f">>>> {total} >>> {request} {context} {datetime.now()}")
+          time.sleep(random.randint(1, 10) / float(10))
+          return hello_pb2.HelloResponse(reply='Hello, %s!' % request.greeting)
+
+  async def serve():
+      port = '50051'
+      # 1. 创建服务
+      server = grpc.aio.server()
+      # 2. 添加服务提供者
+      hello_pb2_grpc.add_HelloServicer_to_server(Hello(), server)
+      # 3. 监听端口
+      server.add_insecure_port('[::]:' + port)
+      # 4. 启动服务
+      await server.start()
+      print("Server started, listening on " + port)
+      await server.wait_for_termination()
+
+
+  if __name__ == '__main__':
+      asyncio.run(serve())
+#+end_src
+* 配置Nginx
+1. http2 on: 如果是1.25之前的nginx使用 `listen 8443 ssl http2`
+2. grpc_pass grpc://grpc: 如果服务端是secure_channel的话，改为 `grpc_pass grpcs://grpc`
+3. nginx 编译安装的话至少需要以下参数: ./configure --with-http_ssl_module --with-http_v2_module
+
+#+begin_src conf
+  upstream grpc {
+    server 127.0.0.1:50051;
+  }
+
+  server {
+    server_name domain.name;
+
+    listen 8443 ssl;
+    http2 on;
+    ssl_certificate /etc/nginx/pki/cert.pem;
+    ssl_certificate_key /etc/nginx/pki/key.pem;
+
+    location / {
+        proxy_read_timeout 300s;
+        proxy_send_timeout 300s;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        grpc_pass grpc://grpc;
+    }
+  }
+#+end_src
+** 使用自签证书
+#+begin_src shell
+  sudo openssl genpkey -algorithm RSA -out key.pem
+  sudo openssl req -new -x509 -key key.pem -out cert.pem -days 3650
+
+  # You are about to be asked to enter information that will be incorporated
+  # into your certificate request.
+  # What you are about to enter is what is called a Distinguished Name or a DN.
+  # There are quite a few fields but you can leave some blank
+  # For some fields there will be a default value,
+  # If you enter '.', the field will be left blank.
+  # -----
+
+  # 以下是一些需要手动填的参数
+  # Country Name (2 letter code) [AU]:
+  # State or Province Name (full name) [Some-State]:
+  # Locality Name (eg, city) []:
+  # Organization Name (eg, company) [Internet Widgits Pty Ltd]:
+  # Organizational Unit Name (eg, section) []:
+  # Common Name (e.g. server FQDN or YOUR name) []:一定要填你的域名
+  # Email Address []:你的邮件
+#+end_src

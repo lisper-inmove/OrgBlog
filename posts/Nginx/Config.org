@@ -1,0 +1,602 @@
+#+TITLE: Nginx - 常用配置
+#+DATE: 2023-09-29 16:52:13
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: Nginx
+#+CATEGORIES: API网关
+
+* From An Example
+#+begin_src conf
+  # 用户与用户组
+  user www www;
+
+  # 根据服务器的 CPU 核心数自动设置 worker 进程数
+  worker_processes auto;
+
+  # 进程Id文件存放位置
+  pid /nginx/pid/nginx.pid;
+
+  # 错误日志存放位置 debug|info|notice|warn|error|crit|alert|emerg
+  # debug: 编译nginx时必须加上 --with-debug
+  error_log log/error.log debug;
+  access_log log/access.log debug;
+
+  events {
+
+      # 设置网路连接序列化，防止惊群现象发生，默认为on
+      accept_mutex on;
+
+      # 每个 worker 进程允许的最大连接数
+      worker_connections 1024;
+
+     # 默认: 如果一个进程没有互斥锁，它将延迟至少多长时间。默认情况下，延迟是500ms 。
+      accept_mutex_delay 100ms;
+  }
+
+  # HTTP 服务器配置块
+  http {
+      # 日志配置
+      log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                        '$status $body_bytes_sent "$http_referer" '
+                        '"$http_user_agent" "$http_x_forwarded_for"';
+      access_log /var/log/nginx/access.log main;
+      error_log /var/log/nginx/error.log error;
+
+      # MIME 类型配置
+      include /etc/nginx/mime.types;
+      default_type application/octet-stream;
+
+      # 允许sendfile方式传输文件，默认为off
+      sendfile on;
+      # 单次sendfile文件大小
+      sendfile_max_chunk 100k;
+
+      # 头部缓冲区大小
+      client_header_buffer_size    128k;
+      # 大型客户端请求头的缓冲区数量和大小
+      large_client_header_buffers  4 128k;
+      # 读取客户端请求头的超时时间
+      client_header_timeout 300;
+
+      # 客户端请求body的大小。超过此大小时返回413 Request Entity too Large
+      client_max_body_size 1m;
+      # 设置读取客户端请求主体的超时时间
+      client_body_timeout 300;
+      # 设置用于读取请求主体的缓冲区大小
+      client_body_buffer_size: 10m;
+      # 指定存储请求主体的临时路径，当请求主体大小超过 client_body_buffer_size 时使用。
+      client_body_temp_path: /tmp 1 2;
+
+      # Gzip 压缩配置
+      gzip on;
+      gzip_types text/plain text/css application/json application/javascript;
+
+      # 代理服务器配置
+      # backend1分配到的流量为1/10
+      upstream backend {
+          server backend1.example.com weight=10;
+          server backend2.example.com weight=90;
+      }
+
+      # 虚拟主机配置块
+      server {
+          # listend address:port|default_server|[backlog=num|recvbuf=size|sendbuf=size|accept_filter=filter|deferred|bind|ipv6only=[on|off|ssl]|ssl]
+          # backlog: tcp中backlogQueue的大小
+          # rcvbuf: 监听文件描述符的SO_RCVBUF
+          # sndbuf: 监听文件描述符的SO_SNDBUF
+          # accept_filter: accept过滤器。只有FreeBSD系统有效
+          # deferred: 连接建立后并不马上调度worker来处理这个请求，而是第一次收到请求后才开始处理这个连接。高并发下，可以减轻worker的负担
+          # bind: 绑定当前端口/地址对
+          # ssl: 必须基于SSL协议
+          listen 80;
+
+          # 优化级依次降低
+          server_name example.com,*.example.com,example.*,~^\.testweb\.com$;
+
+          # 根目录和索引文件配置
+          root /var/www/html;
+          index index.html;
+
+          # 反向代理 location 配置
+          location /app/ {
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              proxy_set_header Host $http_host;
+              proxy_set_header X-NginX-Proxy true;
+              proxy_pass http://backend;  # 将请求代理到上游服务器
+              proxy_set_header Host $host;  # 设置请求头
+          }
+
+          # WebSocket 配置
+          location /ws/ {
+              proxy_pass http://backend;
+              proxy_http_version 1.1;
+              proxy_set_header Upgrade $http_upgrade;
+              proxy_set_header Connection "upgrade";
+              proxy_set_header Host $host;
+              proxy_read_timeout 86400;
+          }
+      }
+  }
+#+end_src
+* Location
+#+begin_src conf
+  location [空格 | = | ~ | ~* | ^~ | @ ] /uri/ {
+
+  }
+#+end_src
+| Char | Explain                |
+| 空格 | 匹配以uri开的uri       |
+| =    | 精确匹配。必须是uri    |
+| ~    | 区分大小写的正则匹配   |
+| ~*   | 不区分大小写的正则匹配 |
+| ^~   | 优先前缀匹配。         |
+
+优先级:
+1. 首先判断 '='，如果有匹配到，立即返回
+2. 判断有没有 '^~' 能匹配上，如果有，立即返回
+3. 如果「空格」有匹配上，保存起来
+4. 正则匹配。如果有匹配到，返回第一个匹配成功的。如果没有匹配到，则返回「空格」。
+** 命名位置Location
+命名位置通常用于内部重定向
+#+begin_src conf
+  location @custom {
+    ...
+  }
+
+  location /foo {
+    try_files $uri @custom;
+  }
+#+end_src
+* Rewrite
+#+begin_verse
+rewrite regex replacement [flag];
+1. regex: 匹配请求uri的正则表达式
+2. replacement: 匹配成功时用于替换uri中的字符
+3. flag: last, break, redirect, permanent
+  1. last: 终止重写，使用新的uri去匹配其它的location。当前location中的内容不再被执行。
+  2. break: 终止重写，保持当前uri，继续执行当前location中的后续内容。
+  3. redirect: 返回302临时重定向
+  4. permanent: 返回301永久重定向
+#+end_verse
+** API接口版本控制
+#+begin_src conf
+  location /v1.6 {
+    rewrite /v1.6/(.*) /$1 break;
+  }
+#+end_src
+* Upstream
+#+begin_src conf
+  upstream backend {
+
+    # 根据用户IP计算出一个key。然后对上游服务器数量进行取模，将用户请求转发到相应服务器上。
+    # 确保同一个用户的请求只会转发到指定的上游服务器中
+    # 不可与weight同时使用。
+    # ip_hash;
+
+    # weight: 转发到此服务的权重
+    # max_fails: 如果这台服务失败max_fails次时，该服务器不可用，默认为1。设置为0表示不检查
+    # fail_timeout=time: 限制max_fails的时间。在fail_timeout时间内，失败max_fails次，表示服务不可用。默认10秒
+    # down: 服务下线。只在使用ip_hash配置项时才有用
+    # backup: 使用ip_hash配置项时无效。表示该server只作备份服务器使用。
+    server domain1 weight=10 max_fails=100;
+    server domain2;
+  }
+
+  server {
+    location / {
+      proxy_pass http://backend;
+    }
+  }
+#+end_src
+| 变量名                  | 含义                                                 |
+| $upstream_addr          | 上游服务器地址                                       |
+| $upstream_cache_status  | 是否命中缓存，取值为 MISS EXPIRED UPDATING STALE HIT |
+| $upstream_status        | 上游服务器返回的响应中的HTTP响应码                   |
+| $upstream_response_time | 上游服务器的响应时间，精度到毫秒                     |
+| $upstream_http_$HEADER  | HTTP头部，如upstream_http_host                       |
+- proxy_pass URL
+#+begin_verse
+location|if
+可以是 http://localhost:8000/uri;
+也可以是 http://unix:/pat/to/backend.socket:/uri;
+也可以使用 upstream http://backend;
+#+end_verse
+- proxy_set_header Host $host;
+#+begin_verse
+转请求头到后端。
+#+end_verse
+- proxy_method method
+#+begin_verse
+http|server|location
+转发时的协议方法名
+#+end_verse
+- proxy_hide_header header;
+#+begin_verse
+给客户端回消息时，隐藏哪些头。如
+proxy_hide_header Cache-Control;
+#+end_verse
+- proxy_pass_header
+#+begin_verse
+与hide相反，可以将之前禁止的header转发给客户端。
+#+end_verse
+- proxy_pass_request_body on|off
+#+begin_verse
+是否向上游服务器发送HTTP包体
+#+end_verse
+- proxy_pass_request_headers on|off
+#+begin_verse
+是否向上游服务器转发HTTP头部
+#+end_verse
+- proxy_next_upstream [error|timeout|invalid_header|http_500|http_502|http_503|http_504|http_404|off]
+#+begin_verse
+http|server|location
+当一个server返回出错时，向另一台server发出请求。默认是不允许的
+#+end_verse
+* 配置项
+- debug_points [start|abort]
+#+begin_verse
+nginx在一些关键错误逻辑设置了调度点。
+如果设置为stop，Nginx的代码执行到这些调度点时会发出SIGSTOP信号用于调试
+如果设置为abort，则会生成coredump文件。
+#+end_verse
+- debug_connection [ip|CIDR]
+#+begin_verse
+定义只有某个ip或CIDR地址才输出debug日志。对于修复bug很有用。编译安装nginx时必须加入 --with-debug 参数
+#+end_verse
+#+begin_src conf
+  events {
+    debug_connection 192.168.0.131;
+    debug_connection 192.168.0.0/24;
+  }
+#+end_src
+- worker_limit_core size
+#+begin_verse
+该配置用于限制生成的coredump文件的大小
+#+end_verse
+- working_directory path
+#+begin_verse
+worker进程的工作目录。同时也是coredump文件生成的目录
+#+end_verse
+- env VAR|VAR=VALUE
+#+begin_verse
+让用户可以直接设置操作系统上的环境变量。
+#+end_verse
+- include path
+#+begin_verse
+引入其它文件配置项
+#+end_verse
+- worker_rlimit_nofile limit
+#+begin_verse
+设置一个worker进程可以打开的最大文件描述符数
+#+end_verse
+- worker_process number
+#+begin_verse
+每个worker是单进线程的进程。如果模块确认不会出现阻塞的情况，那么worker数和cpu核心数一样最好。否则可以稍微多一些进程。
+#+end_verse
+- worker_cpu_affinity cpumask[cpumask]
+#+begin_verse
+worker_cpu_affinity 0001 0010 0100 1000; # 4个cpu的一个例子
+绑定Nginx worker进程到指定的cpu内核。让每个worker独享一个cpu，减少不必要切换开销以及资源竞争。
+#+end_verse
+- ssl_engine device
+#+begin_verse
+如果服务器上有SSL硬件加速设备，可以进行配置以加快SSL协议的处理速度。
+使用 openssl engine -t 查看是否支持SSL硬件加速设备。
+#+end_verse
+- timer_resolution t
+#+begin_verse
+每次内核事件调用返回时，都会执行一次gettimeofday，用内核时钟来更新Nginx的缓存时钟。曾经此函数开销很大，所以需要设置让它少一点执行。目前大多数内核中开销已经很小了，可以不用再管它。
+#+end_verse
+- worker_priority nice;
+#+begin_verse
+设置worker进程的优先级
+#+end_verse
+- accept_mutex[on|off]
+#+begin_verse
+负载均衡锁。默认是打开的，在新的连接到来时，worker会先抢占这个锁，抢到锁了才会与客户端进行连接。当某个worker的连接数达到 worker_connections * 7/8 时，该进程得到锁的机会将大大减小。
+如果关闭该配置，TCP连接建立将更快，但是，worker之间的负载会非常不均衡。
+#+end_verse
+－lock_file path/file
+#+begin_verse
+负载均衡锁可能使用的是文件锁。如果操作系统架构或者编译选项导致Nginx不支持原子锁，那么会使用些文件锁。
+#+end_verse
+- accept_mutex_delay Nms;
+#+begin_verse
+该值指定了工作进程在未能获得 accept_mutex 时应等待多长时间再次尝试。
+#+end_verse
+- multi_accept [on|off]
+#+begin_verse
+事件模型通知有新连接时，尽量在本次调度中建立连接。
+#+end_verse
+- server_names_hash_bucket_size size;
+#+begin_verse
+http|server|location
+用于存放server_name的散列桶的内存大小。提高找到server_name的速度。
+#+end_verse
+- server_names_hash_max_size size;
+#+begin_verse
+http|server|location
+其值越大，server_names_hash_bucket 产生的冲突越小，但是内存消耗地也就越多，检索速度也会更快。
+#+end_verse
+- server_name_in_redirect on|off
+#+begin_verse
+http|server|location
+重定向请求时使用server_name里的配置的第一个主机名代替原先请求中的Host头部
+#+end_verse
+－root alias
+#+begin_src conf
+  location /p/ {
+    # 访问 /p/test/a.html时，返回 path/p/test/a.html
+    # http|server|location
+    root path;
+
+    # 访问 /p/test/a.html时，返回 path/test/a.html
+    # 只能存在于location
+    alias path;
+  }
+#+end_src
+- client_body_in_file_only on|clean|off
+#+begin_verse
+非off: http包体一律存在到磁盘
+on: 请求结束时保留文件
+clean: 请求结束时删除该文件
+#+end_verse
+－client_body_in_single_buffer off|on;
+#+begin_verse
+http|server|location请求的http包体一律存放到内存中
+#+end_verse
+- client_body_buffer_size size;
+#+begin_verse
+如果请求体大小超过了这个值，也还是会写到磁盘中
+#+end_verse
+- client_body_temp_path dir-path[level1[level2[level3]]]
+#+begin_verse
+http包体的临时存放目录 后面的 level1, leve2, leve3用于表示子目录。防止单个目录文件过多。
+#+end_verse
+- client_header_buffer_size size;
+#+begin_verse
+http|server
+保存客户端请求头的buffer大小
+#+end_verse
+- large_client_header_buffers number size
+#+begin_verse
+http|server
+如果请求头超过了 client_header_buffer_size 此配置生效。分别表示个数和大小。
+#+end_verse
+- connection_pool_size size;
+#+begin_verse
+http|server
+每个建立成功的TCP连接会预先分配一个内存池，由size指定。
+size越大，消耗的内存越多，越小则会引发更多的内存分配次数。
+tcp关闭时，销毁该内存
+#+end_verse
+- request_pool_size size;
+#+begin_verse
+开始处理http请求时，会为每个请求都分配一个内存池
+size越大，消耗的内存越多，越小则会引发更多的内存分配次数。
+http请求结束时，销毁该内存
+#+end_verse
+- client_header_timeout time(默认单位为秒)
+#+begin_verse
+http|server|location
+客户端与服务器建立连接后，将开始接收http头部。在这个过程中，如果在一个时间间隔内，没有读取到客户端发来的字节，则认为超时。
+#+end_verse
+- client_body_timeout time
+#+begin_verse
+http|server|location
+读取http包体的超时时间
+#+end_verse
+- send_timeout time
+#+begin_verse
+http|server|location
+发送响应的超时时间。Nginx服务器发送了数据包，但是客户端一直没有去接收，超过这个时间，Nginx会关闭这个连接
+#+end_verse
+- reset_timeout_connection on|off
+#+begin_verse
+连接超时后向客户端发送RST包来重置连接。打开这个开关后台，Nginx会在某个连接超时后直接发送RST包，不再等待用户应答，直接释放关于这个socket的资源。
+它使得更少的 FIN_WAIT_1 FIN_WAIT_2 和 Time_WAIT状态的TCP连接
+#+end_verse
+- lingering_close off|on|always
+#+begin_verse
+连接关闭前如何处理用户数据
+always: 总是处理
+off: 完全不处理
+on: 除了必要数据处理外，其它的不处理
+#+end_verse
+- lingering_time time
+#+begin_verse
+lingering_close 启用后，对于上传大文件很有用。
+用户请求的Content-Length 大于 client_max_body_size，会向用户发送413响应，但是如果用户忽略这个响应，继续发送，过了 lingering_time时间后，Nginx会直接关闭该连接。
+#+end_verse
+- lingering_timeout time
+#+begin_verse
+lingering_close生效后，在关闭连接前，会检测是否有用户发送的数据到达服务器。如果超过lingering_timeout时间后还没有数据可读，那么直接关闭连接。
+#+end_verse
+- keepalive_disable [msie6|safari|none]
+#+begin_verse
+对某些浏览器关闭keepalive功能。某些浏览器早期版本的keepalive功能有性能问题，需要关闭
+#+end_verse
+- keepalive_timeout time(单位秒)
+#+begin_verse
+http|server|location
+一个keepalive连接在闲置一定时间后(Nginx默认为75秒)，服务器和浏览器都会去关闭这个连接。该配置只能约束Nginx。
+#+end_verse
+- keepalive_requests n;
+#+begin_verse
+http|server|location
+一个keepalive连接最多能处理的请求数
+#+end_verse
+- tcp_nodelay on|off;
+#+begin_verse
+http|server|location
+确定对keepalive连接是否使用TCP_NODELAY选项
+#+end_verse
+- tcp_nopush on|off;
+#+begin_verse
+http|server|location
+在打开sendfile选项时，确定是否开启FressBSD系统上的TCP_NOPUSH或Linux系统上的TCP_CORK功能。打开tcp_nopush后，会在发送响应时把整个响应包头放到一个TCP包中发送。
+#+end_verse
+- limit_except
+#+begin_verse
+location
+限制请求方法。除了xx方法，其它都不能使用。可以设置的包括 GET HEAD POST PUT DELETE MKCOL COPY MOVE OPTIONS PROPFIND PROPPATCH LOCK UNLOCK PATCH
+#+end_verse
+#+begin_src conf
+  limit_except GET {
+    allow 192.168.1.0/32;
+    deny all;
+  }
+#+end_src
+- client_max_body_size size
+#+begin_verse
+http|server|location
+浏览器发送的消息中有一个Content-Length字段。client_max_body_size用于限制此值的大小。
+#+end_verse
+- limit_rate speed;
+#+begin_verse
+http|server|location|if
+对客户端请求限制每秒传输的字节数。默认0表示不限速。也可以使用$limit_rate设置
+#+end_verse
+#+begin_src conf
+  server {
+    if ($slow) {
+      set $limit_rate 4k;
+    }
+  }
+#+end_src
+- limit_rate_after time
+#+begin_verse
+http|server|location|if
+表示客户端发送的响应长度超过 limit_rate_after 后才开始限制
+#+end_verse
+- sendfile on|off
+#+begin_verse
+http|server|location
+启用Linux上的sendfile系统调用来发送文件，减少了内核态与用户态之间的两次内存复制。
+直接从磁盘上读取文件后发送到网卡。
+#+end_verse
+- aio on|off
+#+begin_verse
+http|server|location
+是否在FreeBSD或Linux系统上启用内核级别的异步文件I/O功能。它与sendfile是互斥的。
+#+end_verse
+- directio size|off
+#+begin_verse
+http|server|location
+在FreeBSD和Linux系统上使用O_DIRECT选项去读取文件，缓冲区大小为size。通常对大文件的读取速度有优化。与sendfile互斥。
+#+end_verse
+- directio_alignment size
+#+begin_verse
+http|server|location
+与directio配合使用。指定以directio方式读取文件时的对齐方式。一般情况下512B就足够了。但是针对一些高性能的文件系统，如Linux下的XFS，可能需要设置到4KB
+#+end_verse
+- open_file_cache max=N[inactive=time]|off;
+#+begin_verse
+http|server|location
+文件缓存会在内存中存储以下3种信息
+1. 句柄，文件大小，和上次修改时间
+2. 已经打开过的目录结构
+3. 没有找到的或没有权限操作的文件信息
+
+max: 表示在内存中存储元素的最大个数，当达到最大限制后采用LRU算法从缓存中淘汰最近最少使用的元素
+inactive: 表示在指定的时间段内没有被访问过的元素将会被淘汰。默认时间为60s
+off: 关闭缓存功能
+#+end_verse
+#+begin_src conf
+  open_file_cache max=1000 inactive=20s;
+#+end_src
+- open_file_cache_errors on|off
+#+begin_verse
+http|server|location
+是否缓存打开文件错误的信息。如找不到文件，权限错误等信息
+#+end_verse
+- open_file_cache_min_uses number
+#+begin_verse
+http|server|location
+不被淘汰的最小访问次数。与open_file_cache中的inactive配合使用。如果在inactive指定的时间段内，访问次数超过了这个值，将不会被淘汰
+#+end_verse
+- open_file_cache_valid time
+#+begin_verse
+检验缓存中元素有效性的频率。默认60秒检查一次
+#+end_verse
+- ignare_invalid_headers on|off
+#+begin_verse
+如果请求头中有不合法的HTTP头部，Nginx会拒绝服务。直接返回400
+#+end_verse
+- underscorces_in_headers on|off
+#+begin_verse
+http|server
+HTTP头部信息是否不允许带'_'。默认是off。表示不允许。
+#+end_verse
+- if_modified_since [off|exact|before]
+#+begin_verse
+http|server|location
+出于性能都督，Web浏览器一般会在客户端本地缓存一些谇的。下次访问Web服务器时会通过If-Modified-Since头部把上次获取的时间带上。
+此配置决定如何处理If-Modified-Since关。
+off: 忽略If-Modified-Since。直接返回200和文件内容。
+exact: 将If-Modified-Since 头部包含的时间与将要返回的文件上次修改的时间做精确比较，如果没有匹配上，则返回200和文件的实际内容，如果匹配上，则表示浏览器缓存的文件内容已经是最新的了。并返回 304 Not Modified。
+before: 比exact更宽松，只要上次修改时间等于早于用户请求中的If-Modified-Since头部的时候，就返回304
+#+end_verse
+- log_not_found on|off
+#+begin_verse
+http|server|location
+文件未找到时是否记录到error
+如果用户请求的文件没有找到，是否记录到error日志文件中
+#+end_verse
+- merge_slashes on|off
+#+begin_verse
+是否合并'/'。是否将 a///b/c 这样的配置合并为 a/b/c
+#+end_verse
+- resolver address...;
+#+begin_verse
+http|server|location
+DNS解析地址。使用配置的adrress作为DNS服务器去解析域名。
+#+end_verse
+- resolver_timeout time;
+#+begin_verse
+http|server|location
+DNS解析超时时间
+#+end_verse
+- server_tokens on|off
+#+begin_verse
+http|server|location
+请求出错时是否在响应头的Server头部中标明Nginx版本
+#+end_verse
+** ngx_http-core_module模块提供的变量
+| 变量                  | 描述                            |
+|-----------------------+---------------------------------|
+| `$args`               | 请求的参数                      |
+| `$binary_remote_addr` | 二进制的客户端地址              |
+| `$body_bytes_sent`    | 已发送响应体的字节数            |
+| `$content_length`     | 请求头中的 `Content-Length` 值  |
+| `$content_type`       | 请求头中的 `Content-Type` 值    |
+| `$document_root`      | 当前请求的根目录                |
+| `$document_uri`       | 与 `$uri` 相同                  |
+| `$host`               | 请求头中的 `Host` 字段值        |
+| `$hostname`           | 服务器的主机名                  |
+| `$http_name`          | 任意请求头字段                  |
+| `$https`              | 如果连接是 HTTPS 则为 "on"      |
+| `$is_args`            | 如果 `$args` 设置则为 "?"       |
+| `$limit_rate`         | 限制连接的速率                  |
+| `$query_string`       | 同 `$args`                      |
+| `$realpath_root`      | 当前请求的真实路径根目录        |
+| `$remote_addr`        | 客户端的 IP 地址                |
+| `$remote_port`        | 客户端的端口号                  |
+| `$remote_user`        | 用户名                          |
+| `$request`            | 完整的请求行                    |
+| `$request_body`       | 请求的主体内容                  |
+| `$request_body_file`  | 请求主体的临时文件名            |
+| `$request_completion` | 请求完成状态                    |
+| `$request_filename`   | 当前请求的文件路径              |
+| `$request_method`     | 请求使用的方法（GET, POST 等）  |
+| `$request_uri`        | 原始的请求 URI（包含参数）      |
+| `$scheme`             | 请求使用的协议（http 或 https） |
+| `$sent_http_name`     | 任意响应头字段                  |
+| `$server_addr`        | 服务器的地址                    |
+| `$server_name`        | 服务器名                        |
+| `$server_port`        | 服务器的端口号                  |
+| `$server_protocol`    | 请求使用的协议版本              |
+| `$uri`                | 请求的 URI                      |

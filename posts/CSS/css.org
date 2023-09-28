@@ -1,0 +1,20 @@
+#+TITLE: CSS
+#+DATE: 2023-09-30 23:27:40
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+SUBTITLE: 一些记不住的东西
+#+KEYWORDS: CSS
+#+CATEGORIES: CSS
+
+* box-shadow
+
+box-shadow: -10px 0px 13px -7px #ffffff, 另一个阴影, 另另一个;
+
+5个参数分别表示:
+1. 水平偏移: 正值向右偏移，负值向左偏移
+2. 垂直偏移: 正值向下偏移，负值向上偏移
+3. 模糊半径: 阴影模糊程度，值越大，阴影边缘越模糊
+4. 扩展半径: 值越大阴影范围越大
+5. 颜色，阴影颜色

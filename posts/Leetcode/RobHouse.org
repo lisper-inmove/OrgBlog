@@ -1,0 +1,431 @@
+#+TITLE: 198. 打家劫舍
+#+DATE: 2023-09-27 20:03:40
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: Leetcode
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Medium
+
+* 198 && 213 打家劫舍I
+
+https://leetcode.cn/problems/house-robber/description/
+
+#+begin_src python
+  class Solution:
+      def rob(self, nums) -> int:
+          # 198题
+          # return self.robRecusive(nums, 0)
+          # memo = {}
+          # return self.robMemo(nums, 0, memo)
+          return self.robDP2(nums)
+
+      def rob2(self, nums) -> int:
+          # 第213题。循环数组。分别做两次计算
+          # 1. 一定不偷第一家
+          # 2. 一定不偷最后一家
+          if len(nums) == 1:
+              return nums[0]
+          # 递归 TLS
+          # m1 = self.robRecusive(nums[1:], 0)
+          # m2 = self.robRecusive(nums[:len(nums) - 1], 0)
+          # return max(m1, m2)
+
+          # 记忆化搜索
+          # memo0, memo1 = {}, {}
+          # m1 = self.robMemo(nums[1:], 0, memo0)
+          # m2 = self.robMemo(nums[:len(nums) - 1], 0, memo1)
+          # return max(m1, m2)
+
+          # DP1
+          # m1 = self.robDP(nums[1:])
+          # m2 = self.robDP(nums[:len(nums) - 1])
+          # return max(m1, m2)
+
+          # DP2
+          m1 = self.robDP2(nums[1:])
+          m2 = self.robDP2(nums[:len(nums) - 1])
+          return max(m1, m2)
+
+      def robRecusive(self, nums, i):
+          if i >= len(nums):
+              return 0
+          m0 = self.robRecusive(nums, i + 2) + nums[i]
+          m1 = self.robRecusive(nums, i + 1)
+          return max(m0, m1)
+
+      def robMemo(self, nums, i, memo):
+          if i >= len(nums):
+              return 0
+          if memo.get(i) is not None:
+              return memo.get(i)
+          m0 = self.robMemo(nums, i + 2, memo) + nums[i]
+          m1 = self.robMemo(nums, i + 1, memo)
+          memo[i] = max(m0, m1)
+          return memo[i]
+
+      def robDP(self, nums):
+          n = len(nums)
+          dp = [0] * (n + 1)
+          dp[n] = 0
+          dp[n - 1] = nums[-1]
+          for i in range(n - 2, -1, -1):
+              dp[i] = max(dp[i + 2] + nums[i], dp[i + 1])
+          return max(dp)
+
+      def robDP2(self, nums):
+          n = len(nums)
+          a0, a1 = nums[-1], 0
+          result = a0
+          for i in range(n - 2, -1, -1):
+              a0, a1 = max(a1 + nums[i], a0), a0
+              result = max(result, a0)
+          return result
+
+#+end_src
+* 2560. 打家劫舍II
+https://leetcode.cn/problems/house-robber-iv/description/?envType=daily-question&envId=2023-09-18
+#+begin_src python
+  from bisect import bisect_left
+
+  class Solution:
+      def minCapability(self, nums: List[int], k: int) -> int:
+          # return self.minCapabilityRecusive(nums, 0, k)
+          return self.greddy(nums, k)
+
+      def minCapabilityRecusive(self, nums, index, k):
+          if k == 0:
+              return 0
+          if index >= len(nums):
+              return float('inf')
+          n1 = self.minCapabilityRecusive(nums, index + 1, k)
+          n2 = max(nums[index], self.minCapabilityRecusive(nums, index + 2, k - 1))
+          return min(n1, n2)
+
+      def dp(self, nums, k):
+          n = len(nums)
+          dp = [ [0] * (k + 1) for _ in range(n + 2) ]
+          for i in range(0, n + 2):
+              dp[i][0] = 0
+          for _k in range(1, k + 1):
+              dp[n][_k] = float('inf')
+              dp[n + 1][_k] = float('inf')
+          for _i in range(n - 1, -1, -1):
+              for _k in range(1, k + 1):
+                  dp[_i][_k] = min(
+                      dp[_i + 1][_k],
+                      max(dp[_i + 2][_k - 1], nums[_i])
+                  )
+          return dp[0][k]
+
+      def dp1(self, nums, k):
+          # https://www.acwing.com/solution/content/167941/
+          def solve(mx, k):
+              n = len(nums)
+              # dp[i][0]: 第i个房子不偷，最多能偷多少个房子
+              # dp[i][1]: 第i个房子偷了，最多能偷多少个房子
+              dp = [[0] * 2 for _ in range(n)]
+              dp[0][1] = nums[0] <= mx
+
+              for i in range(1, n):
+                  if nums[i] > mx:
+                      dp[i][0] = max(dp[i - 1][0], dp[i - 1][1])
+                  else:
+                      dp[i][0] = max(dp[i - 1][0], dp[i - 1][1])
+                      dp[i][1] = dp[i - 1][0] + 1  # 能偷的房子的个数加1
+                  if max(dp[i][0], dp[i][1]) >= k: # 只关注最大值
+                      return True
+              return False
+
+          m0, m1 = 0, max(nums)
+          while m0 < m1:
+              mid = m0 + ((m1 - m0) >> 1)
+              if solve(mid, k):
+                  m1 = mid
+              else:
+                  m0 = mid + 1
+          return m0
+
+      def dp2(self, nums, k):
+
+          def solve(mx, k):
+              n = len(nums)
+
+              dp0, dp1 = 0, nums[0] <= mx
+              for i in range(1, n):
+                  if nums[i] > mx:
+                      dp0 = max(dp0, dp1)
+                  else:
+                      dp0, dp1 = max(dp0, dp1), dp0 + 1
+                  if max(dp0, dp1) >= k:
+                      return True
+              return False
+
+          m0, m1 = 0, max(nums)
+          while m0 < m1:
+              mid = m0 + ((m1 - m0) >> 1)
+              if solve(mid, k):
+                  m1 = mid
+              else:
+                  m0 = mid + 1
+          return m0
+
+      def dp3(self, nums: List[int], k: int) -> int:
+          # https://leetcode.cn/problems/house-robber-iv/solutions/2093952/er-fen-da-an-dp-by-endlesscheng-m558/?envType=daily-question&envId=2023-09-18
+          # solve(mx) 返回偷窃能力为 mx 时，最多可以偷多少间房子
+          def solve(mx: int) -> int:
+              f0 = f1 = 0
+              for x in nums:
+                  if x > mx:
+                      f0 = f1
+                  else:
+                      f0, f1 = f1, max(f1, f0 + 1)
+              return f1
+          result = bisect_left(range(max(nums)), k, key=solve)
+          return result
+
+      def dp4(self, nums: List[int], k: int) -> int:
+          # solve(mx) 返回偷窃能力为 mx 时，最多可以偷多少间房子
+          def solve(mx: int) -> int:
+              n = len(nums)
+              # f0: 上一个房间不偷，最多能偷多少个房间
+              # f1: 上一个房间偷了，最多能偷多少个房间
+              f0, f1 = 0, nums[0] <= mx
+              for i in range(1, n):
+                  x = nums[i]
+                  if x > mx:  # 当前房间一定偷不了
+                      # f0 = max(f0, f1)
+                      f0 = f1
+                  else:
+                      # f0, f1 = max(f0, f1), max(f1, f0 + 1)
+                      f0, f1 = f1, max(f1, f0 + 1)
+              return f1
+          result = bisect_left(range(max(nums)), k, key=solve)
+          return result
+
+#+end_src
+* 2560. 打家劫舍IV
+#+begin_src python
+  class Solution:
+      def minCapability(self, nums: List[int], k: int) -> int:
+          # return self.recursive(nums, k)
+          return self.dp3(nums, k)
+
+      def recursive(self, nums, k):
+          # 超时
+          def solve(index, ability, k):
+              # 返回 ability 的窃取能力能否完成任务
+              if k == 0:
+                  return True
+              if index >= len(nums):
+                  return False
+              if nums[index] > ability:
+                  return solve(index + 1, ability, k)
+              else:
+                  return solve(index + 2, ability, k - 1) or \
+                      solve(index + 1, ability, k)
+          minValue = min(nums)
+          maxValue = max(nums)
+          for ability in range(minValue, maxValue + 1):
+              if solve(0, ability, k):
+                  return ability
+
+    def recursive1(self, nums, k):
+        def solve(index, ability):
+            # 返回 ability 的窃取能力能否完成任务
+            if index >= len(nums):
+                return 0
+            if nums[index] > ability:
+                return solve(index + 1, ability)
+            else:
+                return max(1 + solve(index + 2, ability),
+                    solve(index + 1, ability))
+        minValue = min(nums)
+        maxValue = max(nums)
+        for ability in range(minValue, maxValue + 1):
+            if solve(0, ability) >= k:
+                return ability
+
+      def dp1(self, nums, k):
+          # 超时
+          if len(nums) == 1 and k == 1:
+              return nums[0]
+
+          def solve(ability, k):
+              n = len(nums)
+              dp = [[0] * 2 for _ in range(0, n)]
+              dp[0][0] = 0
+              dp[0][1] = 1 if nums[0] <= ability else 0
+
+              for i in range(1, n):
+                  dp[i][0] = dp[i - 1][1]
+                  if nums[i] > ability:
+                      dp[i][1] = dp[i - 1][1]
+                  else:
+                      dp[i][1] = dp[i - 1][0] + 1
+                  if dp[i][0] >= k or dp[i][1] >= k:
+                      return True
+              return False
+
+          minValue = min(nums)
+          maxValue = max(nums)
+          for ability in range(minValue, maxValue + 1):
+              if solve(ability, k):
+                  return ability
+
+      def dp2(self, nums, k):
+          if len(nums) == 1 and k == 1:
+              return nums[0]
+          def solve(ability, k):
+              n = len(nums)
+              dp = [[0] * 2 for _ in range(0, n)]
+              dp[0][0] = 0
+              dp[0][1] = 1 if nums[0] <= ability else 0
+
+              for i in range(1, n):
+                  if nums[i] > ability:
+                      dp[i][0] = dp[i - 1][1]
+                      dp[i][1] = dp[i - 1][1]
+                  else:
+                      dp[i][0] = dp[i - 1][1]
+                      dp[i][1] = dp[i - 1][0] + 1
+                  if dp[i][0] >= k or dp[i][1] >= k:
+                      return True
+              return False
+
+          minValue = min(nums)
+          maxValue = max(nums)
+          while minValue < maxValue:
+              mid = minValue + ((maxValue - minValue) >> 1)
+              if solve(mid, k):
+                  maxValue = mid
+              else:
+                  minValue = mid + 1
+          return maxValue
+
+      def dp3(self, nums, k):
+          # 参考dp2，它只依赖于 dp[i - 1]
+          if len(nums) == 1 and k == 1:
+              return nums[0]
+          def solve(ability, k):
+              n = len(nums)
+              dp0, dp1 = 0, 1 if nums[0] <= ability else 0
+              for i in range(1, n):
+                  if nums[i] > ability:
+                      dp0 = dp1
+                  else:
+                      dp0, dp1 = dp1, dp0 + 1
+                  if dp0 >= k or dp1 >= k:
+                      return True
+              return False
+
+          minValue = min(nums)
+          maxValue = max(nums)
+          while minValue < maxValue:
+              mid = minValue + ((maxValue - minValue) >> 1)
+              if solve(mid, k):
+                  maxValue = mid
+              else:
+                  minValue = mid + 1
+          return maxValue
+#+end_src
+** 贪心解法
+#+begin_src python
+  """
+
+  在recursive1函数中有如下代码片断:
+
+  求的是 x[i]
+
+  if nums[index] > ability:
+      return solve(index + 1, ability)                  # x[i] = x[i + 1]
+  else:
+      return max(1 + solve(index + 2, ability),         # x[i] = max(1 + x[i + 2], x[i + 1])
+          solve(index + 1, ability))
+
+  也就是说 x[i] >= x[i + 1] 的
+
+  那么我们就直接遍历数组，只要能偷就偷，偷了就跳过下一个。另外因为这里是找能偷的房子总数，如果是要计算能偷的总金额达到最大值，此方法便不可用了。
+
+  """
+
+
+  class Solution:
+      def minCapability(self, nums, k) -> int:
+          return self.greedy(nums, k)
+
+      def greedy(self, nums, k):
+          def solve(ability, k):
+              ans = 0
+              i = 0
+              while i < len(nums):
+                  if nums[i] <= ability:
+                      i += 1
+                      ans += 1
+                  i += 1
+              return ans >= k
+          minValue = min(nums)
+          maxValue = max(nums)
+          while minValue < maxValue:
+              mid = minValue + ((maxValue - minValue) >> 1)
+              if solve(mid, k):
+                  maxValue = mid
+              else:
+                  minValue = mid + 1
+          return maxValue
+
+#+end_src
+
+* 337. 打家劫舍III
+#+begin_src python
+  from typing import Optional
+
+  class TreeNode:
+      def __init__(self, val=0, left=None, right=None):
+          self.val = val
+          self.left = left
+          self.right = right
+
+  class Solution:
+      def rob(self, root: Optional[TreeNode]) -> int:
+          # return self.robRecusive(root, False)
+
+          memo = {}
+          return self.robMemo(root, False, memo)
+
+      def robRecusive(self, node, f):
+          if node is None:
+              return 0
+          if f: # 父结点已经偷过了
+              return self.robRecusive(node.left, False) + \
+                  self.robRecusive(node.right, False)
+          else:
+              return max(
+                  node.val + self.robRecusive(node.left, True) + \
+                  self.robRecusive(node.right, True),
+                  self.robRecusive(node.left, False) + \
+                  self.robRecusive(node.right, False)
+              )
+
+      def robMemo(self, node, f, memo):
+          if node is None:
+              return 0
+          key = f"{id(node)}_{f}"
+          if memo.get(key):
+              return memo.get(key)
+          result = 0
+          if f: # 父结点已经偷过了
+              result = self.robMemo(node.left, False, memo) + \
+                  self.robMemo(node.right, False, memo)
+          else:
+              result = max(
+                  node.val + self.robMemo(node.left, True, memo) + \
+                  self.robMemo(node.right, True, memo),
+                  self.robMemo(node.left, False, memo) + \
+                  self.robMemo(node.right, False, memo)
+              )
+          memo[key] = result
+          return result
+
+#+end_src

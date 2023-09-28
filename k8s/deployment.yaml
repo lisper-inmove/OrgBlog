@@ -1,0 +1,83 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: blog
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blog
+  namespace: blog
+  labels:
+    name: blog
+    version: v1.0
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: blog
+      version: v1.0
+  template:
+    metadata:
+      labels:
+        name: blog
+        version: v1.0
+    spec:
+      containers:
+      - name: blog
+        image: mh.com:8890/blog/blog:v1.0
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 3000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: blog
+  namespace: blog
+spec:
+  ports:
+  - port: 3000
+    protocol: TCP
+    targetPort: 3000
+  selector:
+    name: blog
+    version: v1.0
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: blog
+  namespace: blog
+spec:
+  ingressClassName: kong
+  rules:
+    - host: blog.inmove.top
+      http:
+        paths:
+          - pathType: Prefix
+            backend:
+              service:
+                name: blog
+                port:
+                  number: 3000
+            path: /
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mblog
+  namespace: blog
+spec:
+  ingressClassName: kong
+  rules:
+    - host: inmove.top
+      http:
+        paths:
+          - pathType: Prefix
+            backend:
+              service:
+                name: blog
+                port:
+                  number: 3000
+            path: /

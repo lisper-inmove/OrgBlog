@@ -1,0 +1,310 @@
+#+TITLE: 遍历二叉树
+#+DATE: 2023-10-04 00:51:41
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: 二叉树的遍历 递归前/中/后 非递归前/中/后 morris前/中/后
+#+CATEGORIES: 数据结构
+
+* morris
+#+begin_src python
+  from collections import deque
+
+  def morrisIn(root):
+      result = []
+      n1, n2 = root, None
+      while n1 is not None:
+
+          # 因为是先序遍历，所以先处理左子结点
+          if n1.left is not None:
+              # 找到左子结点的最右结点，也就是当前结点直接前驱
+              n2 = n1.left
+              while n2.right and n2.right != n1:
+                  n2 = n2.right
+
+              # 如果直接前驱的右儿子是None，则让他指向当前结点
+              if n2.right is None:
+                  n2.right = n1
+                  # 开始处理左子结点
+                  n1 = n1.left
+                  continue
+              else:
+                  # 直接前驱的右儿子不是None，指向的一定是当前结点
+                  n2.right = None
+          # 处理当前结点
+          result.append(str(n1.key))
+          # 处理右子结点
+          # 处理左子结点的最右结点时，n1重新指向了当前结点!!!
+          #       A
+          #      /!\
+          #     B ! C
+          #    / \!
+          #   D   E
+          # 此时E是指向A的。当n1指向E的时候 n1 = n1.right 会使 n1指向A
+          n1 = n1.right
+      return ",".join(result)
+
+  def morrisPre(root):
+      result = []
+      n1, n2 = root, None
+      while n1 is not None:
+          if n1.left is not None:
+              n2 = n1.left
+              while n2.right and n2.right != n1:
+                  n2 = n2.right
+              if n2.right is None:
+                  n2.right = n1
+                  # 要处理左儿子前先把当前结点处理掉
+                  result.append(str(n1.key))
+                  n1 = n1.left
+                  continue
+              else:
+                  n2.right = None
+          else:
+              # 没有左儿子，直接处理当前结点
+              result.append(str(n1.key))
+          # 处理右儿子
+          n1 = n1.right
+      return ",".join(result)
+
+  def morrisPost(root):
+
+      """
+      后序遍历顺序是 左 - 右 - 中
+      换种说法就是 每个结点的左儿子进行右边界 逆序遍历
+
+                       A
+                      / \
+                     B   C
+                    / \
+                   D   E
+      后序为 D E B C A
+      假设有一条从左上到右下的斜线，斜线每走一步，就从下往上遍历压到的结点
+      最开始是到D
+      然后是 B E
+      最后是 A C
+      所以collect函数是搜集右子树的倒序
+      """
+
+      def reverseEdge(node):
+          pre, next = None, None
+          while node is not None:
+              next = node.right
+              node.right = pre
+              pre = node
+              node = next
+          return pre
+
+      def collect(node):
+          tail = reverseEdge(node)
+          cur = tail
+          while cur is not None:
+              result.append(str(cur.key))
+              cur = cur.right
+          reverseEdge(tail)
+
+      result = []
+      n1, n2 = root, None
+      while n1 is not None:
+          if n1.left is not None:
+              n2 = n1.left
+              while n2.right and n2.right != n1:
+                  n2 = n2.right
+              if n2.right is None:
+                  n2.right = n1
+                  n1 = n1.left
+                  continue
+              else:
+                  n2.right = None
+                  # 收集左儿子以及左儿子的右子树
+                  collect(n1.left)
+          n1 = n1.right
+      # 收集根以及根的右子树
+      collect(root)
+      return ",".join(result)
+
+  def printReverse(fromNode, toNode, result):
+      """
+      Print the nodes from fromNode to toNode in reverse order
+      """
+      reverseNodes = []
+      while fromNode != toNode:
+          reverseNodes.append(fromNode)
+          fromNode = fromNode.right
+      reverseNodes.append(toNode)
+      while reverseNodes:
+          result.append(str(reverseNodes.pop().key))
+
+  def morrisPost(root, cls):
+      dummy = cls(0)
+      dummy.left = root
+      current = dummy
+
+      result = []
+      while current is not None:
+          if current.left is None:
+              current = current.right
+          else:
+              pre = current.left
+              while pre.right is not None and pre.right != current:
+                  pre = pre.right
+
+              if pre.right is None:
+                  pre.right = current
+                  current = current.left
+              else:
+                  printReverse(current.left, pre, result)
+                  pre.right = None
+                  current = current.right
+      return ",".join(result)
+#+end_src
+
+* 中序
+#+begin_src python
+  def inorder(root):
+      """中序遍历二叉树"""
+      result = []
+
+      def process(root):
+          if root is None:
+              return
+          process(root.left)
+          result.append(str(root.key))
+          process(root.right)
+      process(root)
+      return ",".join(result)
+
+  def inorderStack(root):
+      if root is None:
+          return
+      result = []
+      stack = []
+      while root or stack:
+          while root:
+              stack.append(root)
+              root = root.left
+          root = stack.pop()
+          result.append(str(root.key))
+          root = root.right
+      return ",".join(result)
+#+end_src
+
+* 前序
+#+begin_src python
+  def preorder(root):
+
+      result = []
+
+      def process(root):
+          if root is None:
+              return
+          result.append(str(root.key))
+          process(root.left)
+          process(root.right)
+      process(root)
+      return ",".join(result)
+
+  def preorderStack(root):
+      if root is None:
+          return
+      result = []
+      stack = [root]
+      while stack:
+          node = stack.pop()
+          result.append(str(node.key))
+          if node.right:
+              stack.append(node.right)
+          if node.left:
+              stack.append(node.left)
+      return ",".join(result)
+#+end_src
+
+* 后序
+#+begin_src python
+  def postorder(root):
+
+      result = []
+
+      def process(root):
+          if root is None:
+              return
+          process(root.left)
+          process(root.right)
+          result.append(str(root.key))
+
+      process(root)
+
+      return ",".join(result)
+
+  def postorderStack(root):
+      if root is None:
+          return []
+      stack1, stack2 = [root], []
+      result = []
+      while stack1:
+          node = stack1.pop()
+          stack2.append(node)
+          if node.left:
+              stack1.append(node.left)
+          if node.right:
+              stack1.append(node.right)
+      while stack2:
+          result.append(str(stack2.pop().key))
+      return ",".join(result)
+#+end_src
+
+* 层序
+#+begin_src python
+  def levelorderTwoStack(root):
+      """层序遍历"""
+      result = []
+      stack = []
+      stack.append(root)
+
+      while stack:
+          tmpStack = []
+          while stack:
+              tmpStack.append(stack.pop())
+          while tmpStack:
+              node = tmpStack.pop()
+              if node.left:
+                  stack.append(node.left)
+              if node.right:
+                  stack.append(node.right)
+              result.append(str(node.key))
+      return ",".join(result)
+
+  def levelorderQueue(root):
+      queue = deque([root])
+      result = []
+      while queue:
+          node = queue.popleft()
+          result.append(str(node.key))
+          if node.left:
+              queue.append(node.left)
+          if node.right:
+              queue.append(node.right)
+      return ",".join(result)
+
+  def levelorderBottom(root, guard):
+      if not root:
+          return []
+      queue = deque()
+      result = []
+      queue.append(root)
+      while queue:
+          queue.append(guard)
+          result.append([])
+          while queue:
+              node = queue.popleft()
+              if node == guard:
+                  break
+              result[-1].append(node.key)
+              if node.left:
+                  queue.append(node.left)
+              if node.right:
+                  queue.append(node.right)
+      result = list(reversed(result))
+      return result
+#+end_src

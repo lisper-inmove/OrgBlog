@@ -1,6 +1,24 @@
-extract:
+e:
 	python extract.py
 build:
 	npm run build
-dev:
+
+dev: e
 	npm run dev
+start:
+	npm run start
+
+build-docker: e build
+	sudo docker build -t mh.com:8890/blog/blog:v1.0 .
+	sudo docker push mh.com:8890/blog/blog:v1.0
+
+stop-k8s:
+	kubectl delete -f k8s/deployment.yaml
+start-k8s:
+	kubectl apply -f k8s/deployment.yaml
+
+restart-k8s: stop-k8s start-k8s
+	echo "Restart Success"
+
+reborn: build-docker restart-k8s
+	echo "Reborn Success"

@@ -1,0 +1,28 @@
+#+TITLE: 2511. 最多可以摧毁的敌人城堡数目
+#+DATE: 2023-10-01 00:07:09
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: Leetcode
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Easy
+
+* Solution
+
+找相临的两个 -1和1 它们之间0最多的就是答案。
+
+#+begin_src python
+  from typing import List
+
+  class Solution:
+      def captureForts(self, forts: List[int]) -> int:
+          ans = 0
+          pre = -1
+          for i in range(0, len(forts)):
+              if (forts[i] == 1 or forts[i] == -1):
+                  if (pre >= 0 and forts[i] != forts[pre]):
+                      ans = max(ans, i - pre - 1)
+                  pre = i
+          return ans
+#+end_src

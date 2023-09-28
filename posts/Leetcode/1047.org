@@ -1,0 +1,26 @@
+#+TITLE: 1047. 删除字符串中的所有相邻重复项
+#+DATE: 2023-10-07 22:44:22
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: Stack
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Easy
+
+* Solution
+#+NAME: 1047.py
+#+begin_src python :results output
+  class Solution:
+      def removeDuplicates(self, s: str) -> str:
+          stack = []
+          for c in s:
+              if not stack:
+                  stack.append(c)
+              else:
+                  if stack[-1] == c:
+                      stack.pop()
+                  else:
+                      stack.append(c)
+          return "".join(stack)
+#+end_src

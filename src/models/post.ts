@@ -7,6 +7,7 @@ export type PostsMetadata = {
   path: string;
   categories: string[];
   difficulty: Difficulty;
+  subtitle: string;
 }
 
 export type TableHeader = {
@@ -33,11 +34,18 @@ export type Verse = {
 
 export type PostsMetadataByCategory = {
   category: string;
-  posts: PostsMetadata[],
+  posts: PostsMetadata[];
+}
+
+export type ParagraphItem = {
+  style: string;
+  value: string;
+  indent: number;
+  type: string;
 }
 
 export type Paragraph = {
-  items: ItemValue[];
+  items: ParagraphItem[];
 }
 
 export type Quote = {

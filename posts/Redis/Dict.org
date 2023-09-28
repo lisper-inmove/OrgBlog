@@ -1,0 +1,347 @@
+#+TITLE: Dict
+#+DATE: 2023-09-28 00:38:44
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: RedisDataStructure Dict
+#+CATEGORIES: Redis
+
+* 结构体
+#+begin_src c
+  // 带value的entry
+  struct dictEntry {
+      void *key;
+      union {
+          void *val;
+          uint64_t u64;
+          int64_t s64;
+          double d;
+      } v;
+      struct dictEntry *next;     /* Next entry in the same hash bucket. */
+      void *metadata[];           /* An arbitrary number of bytes (starting at a
+                                   ,* by dictType's dictEntryMetadataBytes(). */
+  };
+
+  // 没有value的entry。可以节省更多空间
+  typedef struct {
+      void *key;
+      dictEntry *next;
+  } dictEntryNoValue;
+
+
+  typedef struct dictType {
+      uint64_t (*hashFunction)(const void *key);
+      void *(*keyDup)(dict *d, const void *key);
+      void *(*valDup)(dict *d, const void *obj);
+      int (*keyCompare)(dict *d, const void *key1, const void *key2);
+      void (*keyDestructor)(dict *d, void *key);
+      void (*valDestructor)(dict *d, void *obj);
+      int (*expandAllowed)(size_t moreMem, double usedRatio);
+      // no_value为1的时候，就会使用dictEntryNoValue这个结构体
+      /* Flags */
+      /* The 'no_value' flag, if set, indicates that values are not used, i.e. the
+       ,* dict is a set. When this flag is set, it's not possible to access the
+       ,* value of a dictEntry and it's also impossible to use dictSetKey(). Entry
+       ,* metadata can also not be used. */
+      unsigned int no_value:1;
+      /* If no_value = 1 and all keys are odd (LSB=1), setting keys_are_odd = 1
+       ,* enables one more optimization: to store a key without an allocated
+       ,* dictEntry. */
+      unsigned int keys_are_odd:1;
+      /* TODO: Add a 'keys_are_even' flag and use a similar optimization if that
+       ,* flag is set. */
+
+      /* Allow each dict and dictEntry to carry extra caller-defined metadata. The
+       ,* extra memory is initialized to 0 when allocated. */
+      size_t (*dictEntryMetadataBytes)(dict *d);
+      size_t (*dictMetadataBytes)(void);
+      /* Optional callback called after an entry has been reallocated (due to
+       ,* active defrag). Only called if the entry has metadata. */
+      void (*afterReplaceEntry)(dict *d, dictEntry *entry);
+  } dictType;
+
+
+  /**
+     ht_table，相当于是一个二维数组
+       一般使用ht_table[0]，rehash的时候会填充ht_table[1]，
+       rehash完成的时候再赋值到ht_table[0]
+
+     ht_used[i]，记录ht_table[i] 的结点个数
+
+     rehashidx: 下一个rehash的结点索引。没有rehash的时候值为-1。
+
+     ht_size_exp: ht_table[i] 的结点个数上限。2 ^ ht_size_exp[0/1]个
+
+     以上几个字段是rehash的关键字段
+   ,*/
+  struct dict {
+      dictType *type;
+
+      dictEntry **ht_table[2];
+      unsigned long ht_used[2];
+
+      long rehashidx; /* rehashing not in progress if rehashidx == -1 */
+
+      /* Keep small vars at end for optimal (minimal) struct padding */
+      int16_t pauserehash; /* If >0 rehashing is paused (<0 indicates coding error) */
+      signed char ht_size_exp[2]; /* exponent of size. (size = 1<<exp) */
+
+      void *metadata[];           /* An arbitrary number of bytes (starting at a
+                                   ,* pointer-aligned address) of size as defined
+                                   ,* by dictType's dictEntryBytes. */
+  };
+
+  /* If safe is set to 1 this is a safe iterator, that means, you can call
+   ,* dictAdd, dictFind, and other functions against the dictionary even while
+   ,* iterating. Otherwise it is a non safe iterator, and only dictNext()
+   ,* should be called while iterating. */
+  typedef struct dictIterator {
+      dict *d;
+      long index;
+      int table, safe;
+      dictEntry *entry, *nextEntry;
+      /* unsafe iterator fingerprint for misuse detection. */
+      unsigned long long fingerprint;
+  } dictIterator;
+#+end_src
+* Dict Rehash
+#+begin_src c
+  int _dictExpand(dict *d, unsigned long size, int* malloc_failed)
+  {
+      if (malloc_failed) *malloc_failed = 0;
+
+      /* the size is invalid if it is smaller than the number of
+       ,* elements already inside the hash table */
+      if (dictIsRehashing(d) || d->ht_used[0] > size)
+          return DICT_ERR;
+
+      /* the new hash table */
+      dictEntry **new_ht_table;
+      unsigned long new_ht_used;
+      signed char new_ht_size_exp = _dictNextExp(size);
+
+      /* Detect overflows */
+      size_t newsize = 1ul<<new_ht_size_exp;
+      if (newsize < size || newsize * sizeof(dictEntry*) < newsize)
+          return DICT_ERR;
+
+      /* Rehashing to the same table size is not useful. */
+      if (new_ht_size_exp == d->ht_size_exp[0]) return DICT_ERR;
+
+      /* Allocate the new hash table and initialize all pointers to NULL */
+      if (malloc_failed) {
+          new_ht_table = ztrycalloc(newsize*sizeof(dictEntry*));
+          ,*malloc_failed = new_ht_table == NULL;
+          if (*malloc_failed)
+              return DICT_ERR;
+      } else
+          new_ht_table = zcalloc(newsize*sizeof(dictEntry*));
+
+      new_ht_used = 0;
+
+      /* Is this the first initialization? If so it's not really a rehashing
+       ,* we just set the first hash table so that it can accept keys. */
+      if (d->ht_table[0] == NULL) {
+          d->ht_size_exp[0] = new_ht_size_exp;
+          d->ht_used[0] = new_ht_used;
+          d->ht_table[0] = new_ht_table;
+          return DICT_OK;
+      }
+
+      /* Prepare a second hash table for incremental rehashing */
+      d->ht_size_exp[1] = new_ht_size_exp;
+      d->ht_used[1] = new_ht_used;
+      d->ht_table[1] = new_ht_table;
+      d->rehashidx = 0;
+      return DICT_OK;
+  }
+
+
+  int dictRehash(dict *d, int n) {
+
+      /**
+         参数n表示，这一次rehash几个结点。因为Redis的rehash是分散在各个函数中的，有可能find的时候会rehash一个。换句话说就是惰性rehash。
+
+       ,*/
+
+      int empty_visits = n*10; /* Max number of empty buckets to visit. */
+      unsigned long s0 = DICTHT_SIZE(d->ht_size_exp[0]);
+      unsigned long s1 = DICTHT_SIZE(d->ht_size_exp[1]);
+      if (dict_can_resize == DICT_RESIZE_FORBID || !dictIsRehashing(d)) return 0;
+      if (dict_can_resize == DICT_RESIZE_AVOID &&
+          ((s1 > s0 && s1 / s0 < dict_force_resize_ratio) ||
+           (s1 < s0 && s0 / s1 < dict_force_resize_ratio)))
+      {
+          return 0;
+      }
+
+      while(n-- && d->ht_used[0] != 0) {
+          dictEntry *de, *nextde;
+
+          assert(DICTHT_SIZE(d->ht_size_exp[0]) > (unsigned long)d->rehashidx);
+
+          // 将rehashidx的值更新为第一个不为NULL的结点
+          while(d->ht_table[0][d->rehashidx] == NULL) {
+              d->rehashidx++;
+              if (--empty_visits == 0) return 1;
+          }
+
+          // de就是需要rehash的结点
+          de = d->ht_table[0][d->rehashidx];
+
+          // de是一个LinkedList
+          while(de) {
+              uint64_t h;
+
+              nextde = dictGetNext(de);
+              void *key = dictGetKey(de);
+
+              // 计算在ht_table[1]的索引位置
+              if (d->ht_size_exp[1] > d->ht_size_exp[0]) {
+                  h = dictHashKey(d, key) & DICTHT_SIZE_MASK(d->ht_size_exp[1]);
+              } else {
+                  h = d->rehashidx & DICTHT_SIZE_MASK(d->ht_size_exp[1]);
+              }
+
+              // 关于keys_are_odd还没看明白，Dict应该是在其它DataStructure中使用的
+              // 我觉得后面应该能看明白
+              if (d->type->no_value) {
+                  if (d->type->keys_are_odd && !d->ht_table[1][h]) {
+                      assert(entryIsKey(key));
+                      if (!entryIsKey(de)) zfree(decodeMaskedPtr(de));
+                      de = key;
+                  } else if (entryIsKey(de)) {
+                      de = createEntryNoValue(key, d->ht_table[1][h]);
+                  } else {
+                      assert(entryIsNoValue(de));
+                      dictSetNext(de, d->ht_table[1][h]);
+                  }
+              } else {
+                  // de的next指向哈希表的当前位置
+                  dictSetNext(de, d->ht_table[1][h]);
+              }
+
+              // 因为上面de.next已经指向了ht_table[1][h]了，所以现在可以直接赋值了
+              d->ht_table[1][h] = de;
+              d->ht_used[0]--;
+              d->ht_used[1]++;
+              de = nextde;
+          }
+          d->ht_table[0][d->rehashidx] = NULL;
+          d->rehashidx++;
+      }
+
+      // 如果ht_used[0] 的数量为0了，那么rehash就完成了。
+      // 这个时候就会用 ht_table[1] 替换掉 ht_table[0]
+      if (d->ht_used[0] == 0) {
+          zfree(d->ht_table[0]);
+          /* Copy the new ht onto the old one */
+          d->ht_table[0] = d->ht_table[1];
+          d->ht_used[0] = d->ht_used[1];
+          d->ht_size_exp[0] = d->ht_size_exp[1];
+          _dictReset(d, 1);
+          d->rehashidx = -1;
+          return 0;
+      }
+
+      /* More to rehash... */
+      return 1;
+  }
+#+end_src
+* 查找插入点与插入新结点
+#+begin_src c
+  void *dictFindPositionForInsert(dict *d, const void *key, dictEntry **existing) {
+      /**
+
+         查找新的key应该插入到哪个位置
+
+       ,*/
+      unsigned long idx, table;
+      dictEntry *he;
+      uint64_t hash = dictHashKey(d, key);
+      if (existing) *existing = NULL;
+
+      // 相当于尝试rehash要查找的这个结点(惰性rehash的一部分)
+      if (dictIsRehashing(d)) _dictRehashStep(d);
+
+      /* Expand the hash table if needed */
+      if (_dictExpandIfNeeded(d) == DICT_ERR)
+          return NULL;
+      for (table = 0; table <= 1; table++) {
+          idx = hash & DICTHT_SIZE_MASK(d->ht_size_exp[table]);
+          /* Search if this slot does not already contain the given key */
+          he = d->ht_table[table][idx];
+
+          // he是个LinkedList
+          while(he) {
+              void *he_key = dictGetKey(he);
+              if (key == he_key || dictCompareKeys(d, key, he_key)) {
+                  if (existing) *existing = he;
+                  return NULL;
+              }
+              he = dictGetNext(he);
+          }
+
+          // 只有在rehashing进行中的时候才会去查ht_table[1]
+          if (!dictIsRehashing(d)) break;
+      }
+
+      dictEntry **bucket = &d->ht_table[dictIsRehashing(d) ? 1 : 0][idx];
+      return bucket;
+  }
+
+  dictEntry *dictInsertAtPosition(dict *d, void *key, void *position) {
+
+      /**
+
+         插入新的结点。这个position就是上面这个函数的返回值。
+
+       ,*/
+
+      dictEntry **bucket = position; /* It's a bucket, but the API hides that. */
+      dictEntry *entry;
+
+      // 如果是在rehash进行中，则直接插入到ht_table[1]
+      int htidx = dictIsRehashing(d) ? 1 : 0;
+
+      assert(bucket >= &d->ht_table[htidx][0] &&
+             bucket <= &d->ht_table[htidx][DICTHT_SIZE_MASK(d->ht_size_exp[htidx])]);
+
+      size_t metasize = dictEntryMetadataSize(d);
+
+      if (d->type->no_value) {
+          assert(!metasize); /* Entry metadata + no value not supported. */
+          if (d->type->keys_are_odd && !*bucket) {
+              /* We can store the key directly in the destination bucket without the
+               ,* allocated entry.
+               ,*
+               ,* TODO: Add a flag 'keys_are_even' and if set, we can use this
+               ,* optimization for these dicts too. We can set the LSB bit when
+               ,* stored as a dict entry and clear it again when we need the key
+               ,* back. */
+              entry = key;
+              assert(entryIsKey(entry));
+          } else {
+              /* Allocate an entry without value. */
+              entry = createEntryNoValue(key, *bucket);
+          }
+      } else {
+          /* Allocate the memory and store the new entry.
+           ,* Insert the element in top, with the assumption that in a database
+           ,* system it is more likely that recently added entries are accessed
+           ,* more frequently. */
+          entry = zmalloc(sizeof(*entry) + metasize);
+          assert(entryIsNormal(entry)); /* Check alignment of allocation */
+          if (metasize > 0) {
+              memset(dictEntryMetadata(entry), 0, metasize);
+          }
+          entry->key = key;
+          entry->next = *bucket;
+      }
+      ,*bucket = entry;
+      d->ht_used[htidx]++;
+
+      return entry;
+  }
+#+end_src

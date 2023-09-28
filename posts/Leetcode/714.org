@@ -1,0 +1,49 @@
+#+TITLE: 714. 买卖股票的最佳时机含手续费
+#+DATE: 2023-10-01 02:48:45
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: Leetcode
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Medium
+
+* Solution
+#+begin_src python
+  from typing import List
+
+  class Solution:
+
+      def maxProfit(self, prices: List[int], fee: int) -> int:
+         return self.s2(prices, fee)
+
+      def s1(self, prices: List[int], fee: int) -> int:
+          n = len(prices)
+          if n < 2:
+              return 0
+          # 第i天结束时，持有股票的最大利润
+          hold = [0] * n
+          # 第i天结束时，不拥有股票的最大利润
+          cash = [0] * n
+
+          hold[0] = -prices[0] - fee
+          for i in range(1, n):
+              # 1. 和i-1天一样，继续 持有
+              # 2. 第i-1天卖出了,今天重新买入了
+              hold[i] = max(hold[i - 1], cash[i - 1] - prices[i] - fee)
+
+              # 1. 和i-1天一样，什么都不做
+              # 2. 昨天持有了，今天卖出了
+              cash[i] = max(cash[i - 1], hold[i - 1] + prices[i])
+          return cash[-1]
+
+      def s2(self, prices: List[int], fee: int) -> int:
+          n = len(prices)
+          if n < 2:
+              return 0
+          hold, cash = 0, 0
+          hold = -prices[0] - fee
+          for i in range(1, n):
+              hold, cash = max(hold, cash - prices[i] - fee), max(cash, hold + prices[i])
+          return cash
+#+end_src

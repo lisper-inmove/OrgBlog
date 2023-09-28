@@ -1,0 +1,57 @@
+#+TITLE: 25. K个一组反转LinkedList
+#+DATE: 2023-10-01 00:34:29
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: Leetcode
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Hard
+
+* Solution
+#+begin_src python
+  from typing import Optional
+
+  class ListNode:
+      def __init__(self, val=0, next=None):
+          self.val = val
+          self.next = next
+
+
+  class Solution:
+
+      def reverseKGroup(self, head: Optional[ListNode], k: int) -> Optional[ListNode]:
+          if k == 1:
+              return head
+          dummy = ListNode()
+          dummy.next = head
+          prev = dummy
+          end = dummy
+          while True:
+              end = self.find_end(end, k)
+              if end is None:
+                  break
+              prev = self.reverse(prev, end)
+              end = prev
+          return dummy.next
+
+      def reverse(self, prev, end):
+          start = prev.next
+          p = prev.next
+          end_node = end.next
+          while True:
+              n = start.next
+              start.next = n.next
+              n.next = p
+              p = n
+              if start.next == end_node:
+                  break
+          prev.next = p
+          return start
+
+      def find_end(self, node, k):
+          while k and node:
+              node = node.next
+              k -= 1
+          return node
+#+end_src

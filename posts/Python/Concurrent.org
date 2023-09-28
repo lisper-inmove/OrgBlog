@@ -1,0 +1,397 @@
+#+TITLE: 并发编程
+#+DATE: 2023-10-02 13:00:12
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+SUBTITLE: 进程池 线程池 yield的原理 用yield与事件循环实现一个简易的协程
+#+KEYWORDS: Thread Process Coroutine
+#+CATEGORIES: Python
+
+* Thread && Process
+
+多线程。Python有提供内置的线程池。可以很轻松的实现多线程编程。但是因为GIL的关系，使用的还是只有一个CPU。对于IO密集型的应用也是无能为力的。
+
+与ThreadPoolExecutor相对应的是ProcessPoolExecutor，以下的例子，换成ProcessPoolExecutor可以直接执行。它是对multiprocessing的一个封装。
+
+#+begin_src python :results output
+  import time
+  from concurrent.futures import ThreadPoolExecutor
+  from concurrent.futures import wait
+  from concurrent.futures import FIRST_COMPLETED, ALL_COMPLETED
+  from concurrent.futures import as_completed
+
+  def work(worker_number):
+      time.sleep(worker_number)
+      result = 0
+      for i in range(1, 9999999):
+          result += i
+      print(f"task{worker_number} finished")
+      result = f"{worker_number} -> {result}"
+      return result
+
+
+  def run1():
+      with ThreadPoolExecutor(5) as t:
+          task1 = t.submit(work, 1) # 立即返回
+          task2 = t.submit(work, 2)
+          task3 = t.submit(work, 3)
+
+          print(f"task1 >>>> {task1.done()}")
+          print(f"task2 >>>> {task2.done()}")
+          print(f"task3 >>>> {task3.done()}")
+
+          all_tasks = [task1, task2, task3]
+
+          # FIRST_COMPLETED 上面的一个task只要有一个完成了就返回
+          # ALL_COMPLETED 为默认值, wait函数会在所有task都完成了的时候才返回
+          # FIRST_EXCEPTION: 在任意可等待对象因引发异常而结束时返回。当没有引发任何异常时它就相当于 ALL_COMPLETED
+          # timeout 表示 wait函数等待的时间
+          print(wait(all_tasks, return_when=FIRST_COMPLETED, timeout=0.1))
+
+          # as_completed是一个生成器，当有一个任务完成时就返回一次
+          for future in as_completed(all_tasks):
+              result = future.result()
+              print(f"main >>>: {result}")
+
+          print(f"task1 >>>> {task1.done()} {task1.result()}")
+          print(f"task2 >>>> {task2.done()} {task2.result()}")
+          print(f"task3 >>>> {task3.done()} {task3.result()}")
+
+  def run2():
+      print(">>>>>>> 用map可以直接获取到结果 不用再调用result函数 <<<<<<<<<<<")
+      executor = ThreadPoolExecutor(5)
+      i = 1
+      for result in executor.map(work, [1, 2, 3]):
+          print(f"task{i} >>>> {result}")
+          i += 1
+
+  if __name__ == "__main__":
+      run1()
+      run2()
+#+end_src
+* Coroutine
+** Code Object && Function Object && Frame
+#+begin_verse
+Python虚拟机加载源代码，编译成字节码。可以得到 CodeObject 和 FunctionObject。
+FunctionObject 的结构体中有一行 =COMMON_FIELDS(func_)= 会为PyFunctionObject添加一个叫func_code的成员。它最终指向了这个CodeObject。
+当一个函数被调用的时候，Python解释器会创建一个Frame。初始化这个Frame的时候，传把FunctionObject传过去，然后Frame中有一个f_code，指向这个FunctionObject指向的CodeObject。
+
+FunctionObject 有一个成员，叫co_flags，有一个标记位表示 CO_GENERATOR，如果这个函数的定义中有 yield 关键字，这个标志位将被置1。
+那么在我们调用这个函数的时候，就直接返回一个生成器，而不会执行里面的代码。
+#+end_verse
+*** PyCodeObject
+#+begin_src c
+  // Include/cpython/code.h
+
+  // To avoid repeating ourselves in deepfreeze.py, all PyCodeObject members are
+  // defined in this macro:
+  #define _PyCode_DEF(SIZE) {                                                    \
+      PyObject_VAR_HEAD                                                          \
+                                                                                 \
+      /* Note only the following fields are used in hash and/or comparisons      \
+       ,*                                                                         \
+       ,* - co_name                                                               \
+       ,* - co_argcount                                                           \
+       ,* - co_posonlyargcount                                                    \
+       ,* - co_kwonlyargcount                                                     \
+       ,* - co_nlocals                                                            \
+       ,* - co_stacksize                                                          \
+       ,* - co_flags                                                              \
+       ,* - co_firstlineno                                                        \
+       ,* - co_consts                                                             \
+       ,* - co_names                                                              \
+       ,* - co_localsplusnames                                                    \
+       ,* This is done to preserve the name and line number for tracebacks        \
+       ,* and debuggers; otherwise, constant de-duplication would collapse        \
+       ,* identical functions/lambdas defined on different lines.                 \
+       ,*/                                                                        \
+                                                                                 \
+      /* These fields are set with provided values on new code objects. */       \
+                                                                                 \
+      /* The hottest fields (in the eval loop) are grouped here at the top. */   \
+      PyObject *co_consts;           /* list (constants used) */                 \
+      PyObject *co_names;            /* list of strings (names used) */          \
+      PyObject *co_exceptiontable;   /* Byte string encoding exception handling  \
+                                        table */                                 \
+      int co_flags;                  /* CO_..., see below */                     \
+                                                                                 \
+      /* The rest are not so impactful on performance. */                        \
+      int co_argcount;              /* #arguments, except *args */               \
+      int co_posonlyargcount;       /* #positional only arguments */             \
+      int co_kwonlyargcount;        /* #keyword only arguments */                \
+      int co_stacksize;             /* #entries needed for evaluation stack */   \
+      int co_firstlineno;           /* first source line number */               \
+                                                                                 \
+      /* redundant values (derived from co_localsplusnames and                   \
+         co_localspluskinds) */                                                  \
+      int co_nlocalsplus;           /* number of local + cell + free variables */ \
+      int co_framesize;             /* Size of frame in words */                 \
+      int co_nlocals;               /* number of local variables */              \
+      int co_ncellvars;             /* total number of cell variables */         \
+      int co_nfreevars;             /* number of free variables */               \
+      uint32_t co_version;          /* version number */                         \
+                                                                                 \
+      PyObject *co_localsplusnames; /* tuple mapping offsets to names */         \
+      PyObject *co_localspluskinds; /* Bytes mapping to local kinds (one byte    \
+                                       per variable) */                          \
+      PyObject *co_filename;        /* unicode (where it was loaded from) */     \
+      PyObject *co_name;            /* unicode (name, for reference) */          \
+      PyObject *co_qualname;        /* unicode (qualname, for reference) */      \
+      PyObject *co_linetable;       /* bytes object that holds location info */  \
+      PyObject *co_weakreflist;     /* to support weakrefs to code objects */    \
+      _PyExecutorArray *co_executors;      /* executors from optimizer */        \
+      _PyCoCached *_co_cached;      /* cached co_* attributes */                 \
+      uint64_t _co_instrumentation_version; /* current instrumentation version */  \
+      _PyCoMonitoringData *_co_monitoring; /* Monitoring data */                 \
+      int _co_firsttraceable;       /* index of first traceable instruction */   \
+      /* Scratch space for extra data relating to the code object.               \
+         Type is a void* to keep the format private in codeobject.c to force     \
+         people to go through the proper APIs. */                                \
+      void *co_extra;                                                            \
+      char co_code_adaptive[(SIZE)];                                             \
+  }
+
+  /* Bytecode object */
+  struct PyCodeObject _PyCode_DEF(1);
+
+
+  /* Masks for co_flags above */
+  #define CO_OPTIMIZED    0x0001
+  #define CO_NEWLOCALS    0x0002
+  #define CO_VARARGS      0x0004
+  #define CO_VARKEYWORDS  0x0008
+  #define CO_NESTED       0x0010
+  #define CO_GENERATOR    0x0020
+
+  /* The CO_COROUTINE flag is set for coroutine functions (defined with
+     ``async def`` keywords) */
+  #define CO_COROUTINE            0x0080
+  #define CO_ITERABLE_COROUTINE   0x0100
+  #define CO_ASYNC_GENERATOR      0x0200
+#+end_src
+*** PyFunctionObject
+#+begin_src c
+  // Include/cpython/funcobject.h
+
+  #define COMMON_FIELDS(PREFIX) \
+      PyObject *PREFIX ## globals; \
+      PyObject *PREFIX ## builtins; \
+      PyObject *PREFIX ## name; \
+      PyObject *PREFIX ## qualname; \
+      PyObject *PREFIX ## code;        /* A code object, the __code__ attribute */ \
+      PyObject *PREFIX ## defaults;    /* NULL or a tuple */ \
+      PyObject *PREFIX ## kwdefaults;  /* NULL or a dict */ \
+      PyObject *PREFIX ## closure;     /* NULL or a tuple of cell objects */
+
+  typedef struct {
+      COMMON_FIELDS(fc_)
+  } PyFrameConstructor;
+
+
+  typedef struct {
+      PyObject_HEAD
+      COMMON_FIELDS(func_)        // 有一个 func_code 指向code_object
+      PyObject *func_doc;         /* The __doc__ attribute, can be anything */
+      PyObject *func_dict;        /* The __dict__ attribute, a dict or NULL */
+      PyObject *func_weakreflist; /* List of weak references */
+      PyObject *func_module;      /* The __module__ attribute, can be anything */
+      PyObject *func_annotations; /* Annotations, a dict or NULL */
+      PyObject *func_typeparams;  /* Tuple of active type variables or NULL */
+      vectorcallfunc vectorcall;
+      /* Version number for use by specializer.
+       ,* Can set to non-zero when we want to specialize.
+       ,* Will be set to zero if any of these change:
+       ,*     defaults
+       ,*     kwdefaults (only if the object changes, not the contents of the dict)
+       ,*     code
+       ,*     annotations
+       ,*     vectorcall function pointer */
+      uint32_t func_version;
+
+      /* Invariant:
+       ,*     func_closure contains the bindings for func_code->co_freevars, so
+       ,*     PyTuple_Size(func_closure) == PyCode_GetNumFree(func_code)
+       ,*     (func_closure may be NULL if PyCode_GetNumFree(func_code) == 0).
+       ,*/
+  } PyFunctionObject;
+#+end_src
+*** Frame
+#+begin_src c
+  // Include/internal/pycore_frame.h
+
+  struct _frame {
+      PyObject_HEAD
+      PyFrameObject *f_back;      /* 上一个执行帧 */
+      struct _PyInterpreterFrame *f_frame; /* points to the frame data */
+      PyObject *f_trace;          /* 代码的执行情况 */
+      int f_lineno;               /* Current line number. Only valid if non-zero */
+      char f_trace_lines;         /* Emit per-line trace events? */
+      char f_trace_opcodes;       /* Emit per-opcode trace events? */
+      char f_fast_as_locals;      /* Have the fast locals of this frame been converted to a dict? */
+      /* The frame data, if this frame object owns the frame */
+      PyObject *_f_frame_data[1];
+  };
+#+end_src
+** Python是如何处理yield的
+#+begin_src python
+  import sys
+
+  def test1():
+      frame = sys._getframe()
+      print(f"生成器函数的当前Frame: {frame}")
+      print(f"生成器函数的前一个Frame: {frame} {frame.f_back}")
+      yield 1
+      yield 2
+      return 3
+
+  def test2():
+      gen = test1()
+      next(gen)
+      frame = sys._getframe()
+      print(f"当前函数指向的CodeObject: {test2.__code__}")
+      print(f"当前桢指向的CodeObject: {frame.f_code}")
+      print(f"当前函数的桢: {frame}")
+      print(f"gen生成器的桢: {gen.gi_frame}")
+      print(f"gen生成器的CodeObject: {gen.gi_code}")
+
+  test2()
+
+  # 生成器函数的当前Frame: <frame at 0x7f9a7a571c00, file '/home/inmove/code/study/python/test.py', line 5, code test1>
+  # 生成器函数的前一个Frame: <frame at 0x7f9a7a571c00, file '/home/inmove/code/study/python/test.py', line 6, code test1> <frame at 0x7f9a7a630110, file '/home/inmove/code/study/python/test.py', line 13, code test2>
+  # 当前函数指向的CodeObject: <code object test2 at 0x2641150, file "/home/inmove/code/study/python/test.py", line 11>
+  # 当前桢指向的CodeObject: <code object test2 at 0x2641150, file "/home/inmove/code/study/python/test.py", line 11>
+  # 当前函数的桢: <frame at 0x7f9a7a630110, file '/home/inmove/code/study/python/test.py', line 17, code test2>
+  # gen生成器的桢: <frame at 0x7f9a7a571c00, file '/home/inmove/code/study/python/test.py', line 7, code test1>
+  # gen生成器的CodeObject: <code object test1 at 0x7f9a7a600030, file "/home/inmove/code/study/python/test.py", line 3>
+#+end_src
+首先 test2 函数被调用，创建一个Frame，放在Python虚拟机的调用栈的栈顶。这里的调用栈与系统栈是不同的，它是属于Python虚拟机的。
+然后 =gen = test1()= 因为test1中有 *yield* 关键字，所以gen指向一个生成器。并且这个生成器关联了一个Frame
+调用 =next(gen)= 的时候，gen.frame 被放在了栈顶，当遇到下一个 yield 的时候，这个栈又被弹出，上一个Frame又可以接着执行了
+
+** 用yield实现协程
+
+#+NAME: server.py
+#+begin_src python
+  import socket
+  from collections import deque
+  import selectors
+
+  from base import Base
+
+
+  class EventLoop:
+
+      WAIT_READ = 0x01
+      WAIT_WRITE = 0x02
+
+      def __init__(self):
+          self.tasks_to_run = deque([])
+          self.sel = selectors.DefaultSelector()
+
+      def create_task(self, coro):
+          self.tasks_to_run.append(coro)
+
+      def run(self):
+          while True:
+              if self.tasks_to_run:
+                  # 最开始只有 Server.run 返回的生成器
+                  task = self.tasks_to_run.popleft()
+                  try:
+                      # 最开始 Server.run 中的 yield，所以op=loop.WAIT_READ, arg=sock
+                      op, arg = next(task)
+                  except StopIteration:
+                      continue
+
+                  # 最开始，将服务的socket添加到epoll中
+                  if op == self.WAIT_READ:
+                      self.sel.register(arg, selectors.EVENT_READ, task)
+                  elif op == self.WAIT_WRITE:
+                      self.sel.register(arg, selectors.EVENT_WRITE, task)
+                  else:
+                      raise ValueError('Unknown event loop operation:', op)
+              # 当有一个连接请求到来时 服务Socket 触发，重新被添加到 任务队列
+              # key 是一个SelectorKey，其内容如下
+              # SelectorKey(fileobj=<socket.socket fd=4, family=2, type=1, proto=0, laddr=('127.0.0.1', 3355)>, fd=4, events=1,
+              # data=<generator object Server.run at 0x7f6cf7390040>)
+              for key, _ in self.sel.select(timeout=1):
+                  task = key.data
+                  sock = key.fileobj
+                  self.sel.unregister(sock)
+                  self.create_task(task)
+
+
+  class Server(Base):
+
+      def run(self):
+          # 创建监听服务socket
+          sock = socket.socket()
+          sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+          sock.setblocking(False)
+          sock.bind((self.host, self.port))
+          sock.listen()
+
+          # 等待连接
+          while True:
+              yield loop.WAIT_READ, sock
+              client_sock, addr = sock.accept()
+              client_sock.setblocking(False)
+              print(f'Connection from: {addr}')
+              loop.create_task(self.handle_client(client_sock))
+
+      def handle_client(self, sock):
+          while True:
+              yield loop.WAIT_READ, sock
+              received_data = sock.recv(4096)
+              print(f"Receive Data: {received_data}")
+              if not received_data:
+                  break
+              yield loop.WAIT_WRITE, sock
+              sock.sendall(received_data)
+
+          print(f'Client disconnected: {sock.getpeername()}')
+          sock.close()
+
+
+  if __name__ == '__main__':
+      loop = EventLoop()
+      loop.create_task(Server().run())
+      loop.run()
+#+end_src
+
+#+NAME: client.py
+#+begin_src python
+  import asyncio
+  import time
+
+
+  HOST = '127.0.0.1'
+  PORT = 55555
+
+  BUFSIZE = 4096
+
+
+  async def client(name, indent):
+      reader, writer = await asyncio.open_connection(host=HOST, port=PORT)
+      start = time.time()
+      print(f"Client Start: {start}")
+
+      for msg in ['Hello', 'world!',]:
+          await asyncio.sleep(1)
+          writer.write(msg.encode())
+          await writer.drain()
+          resp = (await reader.read(BUFSIZE)).decode()
+          print(f"Read From Server: {resp}")
+
+      writer.close()
+      print(f"Client end: {time.time() - start}")
+
+
+  async def main():
+      clients = [asyncio.create_task(client(i, i)) for i in range(3)]
+      await asyncio.wait(clients)
+
+
+  if __name__ == '__main__':
+      asyncio.run(main())
+#+end_src

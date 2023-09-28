@@ -1,0 +1,95 @@
+#+TITLE: 是否是回文链表
+#+DATE: 2023-09-28 13:44:13
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+SUBTITLE: 是否是回文链表的三种判断方式
+#+KEYWORDS: LinkedList
+#+CATEGORIES: 数据结构
+
+* 链表逆序再比较
+#+begin_src python
+  def isPalindrome1(l):
+      """判断是否是回文链表
+      将链表反转，再与原链表对比
+      """
+      rl = deepcopy(l)
+      reverse(rl)
+      n0, n1 = rl.header.next, l.header.next
+      while n0 and n1:
+          if n0.value != n1.value:
+              return False
+          n0 = n0.next
+          n1 = n1.next
+      return True
+#+end_src
+
+* 前半段入栈
+#+begin_src python
+  def isPalindrome2(l):
+      """ 判断是否是回文链表
+      将链表入栈，入到一半开始出栈，与剩余的链表做对比
+      """
+      if l.isEmpty():
+          return True
+      stack = []
+      reverseCount = l.nodeCount // 2
+      tmp = l.header.next
+      while tmp:
+          if reverseCount > 0:
+              stack.append(tmp)
+          if reverseCount == 0 and l.nodeCount % 2 != 0:
+              tmp = tmp.next
+          if reverseCount <= 0:
+              node = stack.pop()
+              if node.value != tmp.value:
+                  return False
+          tmp = tmp.next
+          reverseCount -= 1
+      return True
+#+end_src
+
+* 前半段反转，再和后半段对比
+#+begin_src python
+  def isPalindrome3(l):
+      """ 判断是否是回文链表
+      将链表前半部分反转，再和剩余的对比
+      """
+      if l.nodeCount == 1:
+          return True
+      if l.nodeCount == 2:
+          return l.header.next.value == l.header.next.next.value
+      h = Node(-1)
+      reverseCount = l.nodeCount // 2
+      tmp = l.header.next
+      while reverseCount:
+          ne = tmp.next
+          tmp.next = h.next
+          h.next = tmp
+          tmp = ne
+          reverseCount -= 1
+          l.header.next = ne
+
+      tmp = l.header.next
+      if l.nodeCount % 2 == 1:
+          tmp = tmp.next
+
+      # 保存一下h, 用于恢复链表
+      reserved = h.next
+      # 跳过临时结点
+      h = h.next
+
+      while tmp and h:
+          if tmp.value != h.value:
+              return False
+          tmp, h = tmp.next, h.next
+
+      while reserved:
+          ne = reserved.next
+          reserved.next = l.header.next
+          l.header.next = reserved
+          reserved = ne
+
+      return True
+#+end_src

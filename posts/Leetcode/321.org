@@ -1,0 +1,71 @@
+#+TITLE: 321. 拼接最大的数
+#+DATE: 2023-09-27 22:01:15
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: Leetcode MonotonicStack
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Hard
+
+
+* 拼接最大数
+
+https://leetcode.cn/problems/create-maximum-number
+
+#+begin_src python
+  from typing import List
+
+  class Solution:
+      def maxNumber(self, nums1: List[int], nums2: List[int], k: int) -> List[int]:
+          result = None
+          for _k in range(0, k + 1):
+              a1 = self.getMaxSubsequence(nums1, _k)
+              a2 = self.getMaxSubsequence(nums2, k - _k)
+              #　print(a1, _k, a2, k - _k)
+              if len(a1) + len(a2) != k:
+                  continue
+              a = self.merge(a1, a2)
+              result = self.compare(result, a)
+          return result
+
+      def compare(self, num1, num2):
+          if num1 is None:
+              return num2
+          if num2 is None:
+              return num1
+          for i in range(0, len(num1)):
+              if num1[i] > num2[i]:
+                  return num1
+              elif num1[i] < num2[i]:
+                  return num2
+              else:
+                  # 相等时继续 判断 下一个数
+                  pass
+          return num1
+
+      def getMaxSubsequence(self, num, n):
+          """数组中长度为n的最大子序列"""
+          if n > len(num):
+              return []
+          abandon = len(num) - n # 一共可以舍弃这么多个数
+          stack = []
+          for i in range(0, len(num)):
+              while stack and stack[-1] < num[i] and abandon > 0:
+                  stack.pop()
+                  abandon -= 1
+              stack.append(num[i])
+          while abandon > 0:
+              stack.pop()
+              abandon -= 1
+          return stack
+
+      def merge(self, nums1, nums2):
+          result = []
+          while nums1 or nums2:
+              if nums1 > nums2:
+                  result.append(nums1.pop(0))
+              else:
+                  result.append(nums2.pop(0))
+          return result
+#+end_src

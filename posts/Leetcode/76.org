@@ -1,0 +1,57 @@
+#+TITLE: 76. 最小覆盖子串
+#+DATE: 2023-10-09 14:09:13
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: SlidingWindow
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Hard
+
+* Soluction
+#+NAME: 76.py
+#+begin_src python :results output
+  from collections import Counter
+
+  class Solution:
+      def minWindow(self, s: str, t: str) -> str:
+          if not s or not t:
+              return ""
+
+          dict_t = Counter(t)             # 计算字符串t中每个字符的频率
+          required = len(dict_t)          # 记录需要匹配的字符种类数量
+          l, r = 0, 0                     # 初始化两个指针l和r为0
+          formed = 0                      # 初始化变量formed为0，用于记录当前窗口中已经匹配的字符种类数量
+          window_counts = {}              # 初始化一个空字典用于记录当前窗口中每个字符的频率
+          ans = float("inf"), None, None  # 初始化结果变量为无穷大，None，None，用于记录最小窗口的长度和索引范围
+
+          while r < len(s):
+              character = s[r]
+              window_counts[character] = window_counts.get(character, 0) + 1  # 更新窗口中该字符的频率
+
+              # 如果该字符是t中的字符，并且其在窗口中的频率已经满足t中的要求，则增加formed的值
+              if character in dict_t and window_counts[character] == dict_t[character]:
+                  formed += 1
+
+              # 当窗口中已经匹配了所有需要的字符种类时，尝试收缩窗口以找到最小窗口
+              while l <= r and formed == required:
+                  character = s[l]  # 获取左指针l所指向的字符
+
+                  # 如果当前窗口的长度小于之前记录的最小窗口长度，则更新结果变量
+                  if r - l + 1 < ans[0]:
+                      ans = r - l + 1, l, r
+
+                  # 更新窗口中该字符的频率，并检查是否仍然满足所有字符的匹配条件
+                  window_counts[character] -= 1
+                  if character in dict_t and window_counts[character] < dict_t[character]:
+                      formed -= 1
+
+                  l += 1  # 收缩窗口，移动左指针
+
+              r += 1  # 扩展窗口，移动右指针
+
+          # 如果没有找到满足条件的窗口，则返回空字符串，否则返回最小窗口
+          return "" if ans[0] == float("inf") else s[ans[1]:ans[2] + 1]
+#+end_src
+
+#+RESULTS: 76.py

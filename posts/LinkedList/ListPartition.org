@@ -1,0 +1,52 @@
+#+TITLE: 将链表分成三个部分
+#+DATE: 2023-09-28 13:46:36
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: LinkedList
+#+CATEGORIES: 数据结构
+
+* 将链表分成3个部分
+#+begin_src python
+  def listPartition(l, pivot):
+      """
+      将链表划分为三部分 left, middle, right。left的值都小于pivot，middle的值都等于pivot，right的值都大于pivot
+      """
+      # 用于保存三个部分的头结点
+      lh, mh, rh = Node(-1), Node(-1), Node(-1)
+      # 用于保存三个部分的尾结点
+      lt, mt, rt = lh, mh, rh
+      tmp = l.header.next
+      while tmp:
+          n = tmp.next
+          if tmp.value < pivot:
+              lt.next = tmp
+              lt = lt.next
+          elif tmp.value == pivot:
+              mt.next = tmp
+              mt = mt.next
+          else:
+              rt.next = tmp
+              rt = rt.next
+          tmp.next = None
+          tmp = n
+
+      lh, mh, rh = lh.next, mh.next, rh.next
+
+      # 将left与middle合并
+      if lh is not None:
+          lt.next = mh
+          mt = mt if mh is not None else lt
+      # 合并剩余两部分
+      if mt is not None:
+          mt.next = rh
+
+      if lh is not None:
+          l.header.next = lh
+      elif mh is not None:
+          l.header.next = mh
+      else:
+          l.header.next = rh
+      return l
+#+end_src

@@ -1,0 +1,42 @@
+#+TITLE: 84. 柱状图中最的矩形
+#+DATE: 2023-10-01 00:26:38
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: Leetcode MonotonicStack
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Hard
+
+* Solution
+#+begin_src python
+  from typing import List
+
+  class Solution:
+      def largestRectangleArea(self, heights: List[int]) -> int:
+          if len(heights) == 0:
+              return 0
+          area = 0
+
+          stack = []
+          heights.append(0)
+
+          for i in range(0, len(heights)):
+              while stack and heights[stack[-1]] > heights[i]:
+                  # stack[-1]是Stack中最高的那个柱子
+                  # stack[-2](如果有的话) 就是 stack[-1]左第一个比它矮的柱子, i是stack[-1]右边第一个比它矮的柱子
+
+                  # 计算的是Stack顶柱为高的最大面积
+                  h = heights[stack.pop()]
+
+                  # 以stack[-1]为高的柱子的宽度就是  i - stack[-1] - 1
+                  # 因为这是单调递增的Stack，所以，如果代码执行到这一行时，Stack空了，说明刚才弹的就是最后一个柱子了
+                  # 并且它前面的所有柱子都要比它大(如果比它小，就会被留在Stack中)
+                  # 所以这种情况，宽度应该为 i (可以理解: i - stack[-1] - 1 中的 stack[-1]就是-1，相当于i + 1 - 1)
+                  width = i if len(stack) == 0 else i - stack[-1] - 1
+
+                  area = max(area, h * width)
+
+              stack.append(i)
+          return area
+#+end_src

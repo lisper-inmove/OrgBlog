@@ -12,6 +12,7 @@ export function getPostsMetadata() {
     keywords: item.keywords.split(' ').filter((keyword: string) => keyword.trim() !== ''), 
     categories: item.categories.split(' ').filter((keyword: string) => keyword.trim() !== ''),
     difficulty: item.difficulty,
+    subtitle: item.subtitle,
   }));
   return postsMetadata;
 }

@@ -1,3 +1,5 @@
+import Head from 'next/head';
+
 import { decodeBase64, encodeBase64 } from '@/utils/common';
 import OrgParser from '@/components/OrgParser';
 
@@ -11,5 +13,7 @@ export default async function Post({params: {post}}: PageProps) {
   const relPath = decodeBase64(post);
   const parser = new OrgParser(relPath);
   const component = parser.parse();
-  return (<div>{component}</div>);
+  return (<div>
+    {component}
+  </div>);
 }

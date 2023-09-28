@@ -19,6 +19,12 @@ export default function ParagraphParser({paragraph}: Props) {
       let style = getTextStyle(item.style);
       if (item.value == '\n') {
         return (<br key={index} />);
+      } else if (item.style == "link") {
+        let text = item.value.split("||")[0];
+        let href = item.value.split("||")[1];
+        return (<a key={index} href={href} style={{
+            color: "red",
+          }}>{text}</a>);
       }
       return (
         <span key={index} style={style}>
@@ -29,9 +35,10 @@ export default function ParagraphParser({paragraph}: Props) {
     });
   };
 
-  return (<div className="w-9/10 mx-auto bg-gray-800 text-gray-200">
-      <div className="p-1">
-        {renderValue(paragraph.items)}
-      </div>
+  return (<div className="w-9/10 p-2 mx-auto bg-gray-800 text-gray-200 leading-7">
+    <div className="p-1"
+    >
+      {renderValue(paragraph.items)}
+    </div>
   </div>);
 }

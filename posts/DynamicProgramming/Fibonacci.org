@@ -1,0 +1,52 @@
+#+TITLE: 斐波那契的计算
+#+DATE: 2023-09-27 19:35:46
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: 动态规划
+#+CATEGORIES: 动态规划
+
+* Fibonacci
+#+begin_src python :result output
+  import time
+  def fib(n):
+      """递归"""
+      if n == 1:
+          return 1
+      if n == 2:
+          return 1
+      return fib(n - 1) + fib(n - 2)
+
+  def fib_memo(n, memo):
+      """记忆化搜索"""
+      if n == 1:
+          return 1
+      if n == 2:
+          return 1
+      if memo.get(n):
+          return memo.get(n)
+      result = fib_memo(n - 1, memo) + fib_memo(n - 2, memo)
+      memo[n] = result
+      return result
+
+  def fib_dp(n):
+      """动态规划"""
+      dp = [0] * (n + 1)
+      dp[0] = 1                                 # 对应于 if n == 1
+      dp[1] = 1                                 # 对应于 if n == 2
+      for i in range(2, n):
+          dp[i] = dp[i - 1] + dp[i - 2]
+      return dp[n]                              # 递归里求的是 fib(n)，所以这里也应该返回 dp[n]
+
+
+  memo = {}
+  n = 40
+
+  start = time.time()
+  print(f"递归: {fib(n)}: {time.time() - start}")
+  start = time.time()
+  print(f"记忆化搜索: {fib_memo(n, memo)}: {time.time() - start}")
+  start = time.time()
+  print(f"dp: {fib_dp(n)}: {time.time() - start}")
+#+end_src

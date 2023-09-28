@@ -1,0 +1,39 @@
+#+TITLE: 124. 二叉对中的最大路径和
+#+DATE: 2023-10-04 01:05:15
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: BinaryTree
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Hard
+
+* Solution
+#+begin_src python
+  from typing import Optional
+
+  class TreeNode:
+      def __init__(self, val=0, left=None, right=None):
+          self.val = val
+          self.left = left
+          self.right = right
+
+  class Solution:
+
+      def maxPathSum(self, root: Optional[TreeNode]) -> int:
+          self.max_sum = -float('inf')
+          self.maxPathSumRecu(root)
+          return self.max_sum
+
+      def maxPathSumRecu(self, root):
+          if root is None:
+              return 0
+          # 计算左子树的最大路径和
+          maxLeft = max(0, self.maxPathSumRecu(root.left))
+          # 计算左子树的最大路径和
+          maxRight = max(0, self.maxPathSumRecu(root.right))
+          # 当前结点，左右子树，三者之和作为最大路径和，与已保存的最大路径和做比较
+          self.max_sum = max(self.max_sum, maxLeft + maxRight + root.val)
+          # 返回给当前结点父结点计算最大路径和(只能使用左子树或右子树中的一个结点)
+          return root.val + max(maxLeft, maxRight)
+#+end_src

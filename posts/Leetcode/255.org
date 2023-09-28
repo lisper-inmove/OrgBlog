@@ -1,0 +1,49 @@
+#+TITLE: 255. 验证二叉搜索树
+#+DATE: 2023-09-29 15:45:43
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: Leetcode 二叉树
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Medium
+
+* Solution
+
+如何判断序列是不是二叉搜索树的前序遍历:
+假设 x, a[0]~a[n], b[0]~b[m] 是该数组。假设 a[0]~a[n] 在x的左子树，b[0]~b[m]在右子树。那么 a < x < b
+当遍历到b[0]的时候，因为 Stack中所有元素都是小于 b[0] 的，那么弹出所有元素，pre设置为x，如果b[1]~b[m]中出现了一个小于 pre 的数，与假设相违背了，就返回False。
+最后遍历完了b，也没有返回False，就返回True。
+判断是否是中序遍历的搜索二叉树:
+中序遍历出来的数组，是按顺序从小到大排列的，所有只要比对 x 与 x - 1是否是按顺序的就行了
+判断是否是后充了遍历搜索二叉树:
+后序的数组是这样的 a[0]..a[n], b[0]..b[m], x 那么就要从后往前遍历数组了。
+比Stack顶大的，直接入Stack，遇到第一个比Stack顶小的(a[n])，就开始出Stack，最后pre就会被保存为x。
+同样，a[0]..a[n-1]里只要遇到一个比pre大的那么直接返回False
+
+#+begin_src python
+  from typing import List
+
+  class Solution:
+      def verifyPreorder(self, preorder: List[int]) -> bool:
+          if len(preorder) == 0:
+              return True
+          pre = float('-inf')
+          stack = []
+          for i in range(0, len(preorder)):
+
+              # 因为剩余结点只能是 pre 的右结点，所以说，一旦 preorder[i] < pre，
+              # 二叉树便是错的
+              if preorder[i] < pre:
+                  return False
+
+              # 最后一个被pop出去的是 剩余 结点的父结点，且剩余结点是在它的右子树上
+
+              # stack[-1] < preorder[i] 说明 preorder[i] 是stack[-1] 右子树上的结点
+              # 而stack[-1] 则是 stack[-2](如果存在的话) 左子树上的结点
+              while stack and stack[-1] < preorder[i]:
+                  pre = stack.pop()
+
+              stack.append(preorder[i])
+          return True
+#+end_src

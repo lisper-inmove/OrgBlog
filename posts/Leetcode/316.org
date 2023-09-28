@@ -1,0 +1,46 @@
+#+TITLE: 316. 去除重复字母
+#+DATE: 2023-10-08 11:27:43
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: 栈
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Medium
+
+* Solution
+#+NAME: 316.py
+#+begin_src python :results output
+  class Solution:
+      def removeDuplicateLetters(self, s: str) -> str:
+          # 用于记录字符最后一次出现的索引位置
+          lastIndex = [0] * 26
+          # 用户记录字符是否已经在栈中了
+          visited = [False] * 26
+          stack = []
+
+          # 记录最后一次索引位置
+          for index, c in enumerate(s):
+              lastIndex[ord(c) - ord('a')] = index
+
+          for index, c in enumerate(s):
+              # 当前字符在 lastIndex/visited 中的索引下标
+              cindex = ord(c) - ord('a')
+
+              # 如果已经在栈中了
+              if visited[cindex]:
+                  continue
+
+              # 如果当前字符比栈顶的元素要小
+              # 并且栈顶元素后面还会出现
+              # 就将栈顶元素去掉，并且已经在栈中置为False
+              while stack and stack[-1] > c and lastIndex[ord(stack[-1]) - ord('a')] > index:
+                  r = stack.pop()
+                  visited[ord(r) - ord('a')] = False
+
+              # 将当前字符入栈，并标记为已访问
+              stack.append(c)
+              visited[cindex] = True
+
+          return ''.join(stack)
+#+end_src

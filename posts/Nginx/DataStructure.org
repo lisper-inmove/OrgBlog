@@ -1,0 +1,140 @@
+#+TITLE: Nginx - 数据结构
+#+DATE: 2023-10-01 12:46:05
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: Nginx
+#+CATEGORIES: API网关
+
+* ngx_int_t
+#+begin_src c
+  // 1. ngx_int_t 与 ngx_uint_t
+  // intptr_t 和 uintptr_t 是 C 语言中用于整数和指针之间转换的类型
+  typedef intptr_t ngx_int_t;
+  typedef uintptr_t ngx_uint_t;
+#+end_src
+* ngx_str_t
+#+begin_src c
+  // 2. ngx_str_t
+  // 这样定义的一个好处是，长度是可以直接得到。
+  // 另一个好处是，一块内存可以保存多个ngx_str_t，不同的起始地址和len可以指向多个字符串
+  // 但是data最好不要直接使用c内置的字符串函数。因为它并不是以\0结尾，而是以len来标明结尾
+  typedef struct {
+      size_t len;
+      u_char *data;
+  } ngx_str_t;
+#+end_src
+* ngx_list_list
+#+begin_src c
+  // 3. ngx_list_t
+  // 链表容器的封装
+  typedef struct ngx_list_part_s ngx_list_part_t;
+  struct ngx_list_part_s {
+      // 数组的起始地址
+      void *elts;
+      // 已经使用的元素个数
+      ngx_uint_t nelts;
+      // 下一个ngx_list_part_t的地址
+      ngx_list_part_t *next;
+  };
+  // pool可以认为是一段连续的内存块
+  // 一个ngx_list_part_t占用最大内存为 size * nalloc
+  typedef struct {
+      // 最后一个数组元素
+      ngx_list_part_t *last;
+      // 链表中的首个数组元素
+      ngx_list_part_t part;
+      // 单个ngx_list_part_t占用的空间大小
+      size_t size;
+      // 每个ngx_list_part_t的容量(元素个数)
+      ngx_uint_t nalloc;
+      // 管理内存分配的内存池对象
+      ngx_pool_t *pool;
+  }ngx_list_t;
+  // 新建一个链表
+  ngx_list_t ngx_list_create(ngx_pool_t pool, ngx_uint_t n, size_t size);
+  // 初始化链表
+  static ngx_inline ngx_int_t ngx_list_init(ngx_list_t list, ngx_pool_t pool, ngx_uint_t n, size_t size);
+  // 添加一个新的元素。返回的是新加的结点的地址
+  void *ngx_list_push(ngx_list list);
+#+end_src
+* ngx_chain_t
+#+begin_src c
+  // 4. ngx_table_elt_t
+  typedef struct {
+      ngx_uint_t hash;
+      ngx_str_t key;
+      ngx_str_t value;
+      // key的小写
+      u_char *lowcase_key;
+  } ngx_table_elt_t;
+
+  // 5. ngx_buf_t
+  // 处理大数据的关键数据结构，它既应用于内存数据也应用于磁盘数据
+  typedef struct ngx_buf_s nxg_buf_t;
+  typedef void *ngx_buf_tag_t;
+
+  struct ngx_buf_s {
+      // 起始地址
+      u_char *pos;
+      // 终止位置
+      u_char *last;
+      // 如果是处理文件
+
+      off_t file_pos;
+      off_t file_last;
+      // 引用的文件
+      ngx_file_t *file;
+
+      u_char *start;
+      u_char *end;
+
+      // 当前缓存区的类型
+      ngx_buf_tag_t tag;
+
+      ngx_buf_t *shadow;
+
+      // 临时内存标志位，为1时表示数据在内存中，且这段内存可修改
+      usigned temporary:1;
+
+      // 标志位，为1时表示数据在内存中，且不可修改
+      usigned memory:1;
+
+      // 由mmap系统调用映射过来的，不可修改
+      usigned mmap:1;
+
+      // 可回收
+      unsigned recycled:1;
+
+      // 缓冲区处理的是文件不是内存
+      unsigned in_file:1;
+
+      // 表示需要做flush操作
+      unsigned flush:1;
+
+      // 对于操作这块缓冲区是否使用同步方式
+      // 同步方式可能会阻塞Nginx进程
+      unsigned sync:1;
+
+      // 是否是最后一块缓冲区
+      // ngx_buf_t可由ngx_chain_t串联起来，当last_buf为1时，表示当前是最后一块待缓冲区
+      unsigned last_buf:1;
+
+      // 是否是ngx_chain_t中的最后一块缓冲区
+      unsigned last_in_chain:1;
+
+      // 是否是影子缓冲区
+      unsigned last_shadow:1;
+
+      // 是否是属于临时文件
+      unsigned temp_file:1;
+  };
+
+
+  typedef struct ngx_chain_s ngx_chain_t;
+  struct ngx_chani_s {
+      ngx_buf_t *buf;
+      ngx_chain_t *next;
+  }
+#+end_src

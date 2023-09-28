@@ -4,8 +4,8 @@
 #+STARTUP: indent
 #+OPTIONS: toc:10
 #+AUTHOR: inmove
-#+KEYWORDS: Leetcode 动态规划
-#+CATEGORIES: Leetcode 动态规划
+#+KEYWORDS: Leetcode DynamicProgramming
+#+CATEGORIES: Leetcode
 #+DIFFICULTY: Hard
 
 * Solution

@@ -1,0 +1,75 @@
+#+TITLE: 42. 接雨水
+#+DATE: 2023-10-01 00:21:56
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: Leetcode
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Hard
+
+* Solution
+#+begin_src python
+  from typing import List
+
+  class Solution:
+      def trap(self, height: List[int]) -> int:
+          if len(height) == 0:
+              return 0
+          leftMax = [-1] * len(height)
+          rightMax = [-1] * len(height)
+
+          lmax = 0
+          for i in range(0, len(height)):
+              if lmax > height[i]:
+                  leftMax[i] = lmax
+              else:
+                  lmax = height[i]
+
+          rmax = 0
+          for i in range(len(height) - 1, -1, -1):
+              if rmax > height[i]:
+                  rightMax[i] = rmax
+              else:
+                  rmax = height[i]
+
+          rain = 0
+          for i in range(0, len(height)):
+              h = min(leftMax[i], rightMax[i])
+              if h > height[i]:
+                  rain += h - height[i]
+          return rain
+#+end_src
+
+#+begin_src python
+  from typing import List
+
+  class Solution:
+      def trap(self, height: List[int]) -> int:
+          if len(height) == 0:
+              return 0
+          stack = []   # 保存索引下标
+
+          rain = 0     # 雨水总量
+
+          for i in range(0, len(height)): # 遍历每一个柱子
+
+              # height = [4, 2, 0, 3, 2, 5]
+              # 计算当前Stack顶能接多少雨水
+              # 如果Stack里当前为 [0, 1, 2](对应height为[4, 2, 0])
+              # 下一个数为3(i = 3)
+              # 此时 height[stack[-1]] = 0
+              # height[i] = 3
+              while stack and height[stack[-1]] < height[i]:
+                  h = stack.pop()        # h = 2, stack = [0, 1]
+                  if len(stack) == 0:
+                      break
+                  h2 = stack[-1]         # h2 = 1
+                  # min(height[i], height[h2])，比h大的数的较小者
+                  # minValue - height[h]，高度差
+                  # i - h2 - 1: 宽度 (h2, i) 全开区间
+                  rain += (min(height[i], height[h2]) - height[h]) * (i - h2 - 1)
+              stack.append(i)
+
+          return rain
+#+end_src

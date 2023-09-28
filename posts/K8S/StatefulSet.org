@@ -20,7 +20,7 @@
 
 使用场景：
 1. 数据库：如 MySQL、MongoDB、Cassandra 等。
-2. 消息队列：如 Kafka、RabbitMQ 等。
+2. 消息Queue：如 Kafka、RabbitMQ 等。
 3. 其他有状态应用：任何需要持久化存储、稳定网络标识或有序部署的应用。
 * 使用StatefulSet部署Redis
 #+begin_src yaml

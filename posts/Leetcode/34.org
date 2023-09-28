@@ -1,0 +1,44 @@
+#+TITLE: 34. 在排序数组中查找元素的第一个和最后一个位置
+#+DATE: 2023-10-01 15:56:06
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: Leetcode
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Medium
+
+* Solution
+#+begin_src python
+  from typing import List
+
+  class Solution:
+      def searchRange(self, nums: List[int], target: int) -> List[int]:
+          left, right = 0, len(nums) - 1
+          first, last = -1, -1
+
+          # 找到第一个
+          while left <= right:
+              mid = right - (right - left) // 2
+              if nums[mid] == target:
+                  first = mid
+                  right = mid - 1
+              elif nums[mid] > target:
+                  right = mid - 1
+              else:
+                  left = mid + 1
+
+          # 找到最后一个
+          left, right = 0, len(nums) - 1
+          while left <= right:
+              mid = right - (right - left) // 2
+              if nums[mid] == target:
+                  last = mid
+                  left = mid + 1
+              elif nums[mid] > target:
+                  right = mid - 1
+              else:
+                  left = mid + 1
+
+          return [first, last]
+#+end_src

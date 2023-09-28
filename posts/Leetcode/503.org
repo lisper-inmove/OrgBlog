@@ -1,0 +1,39 @@
+#+TITLE: 503. 下一个更大元素II
+#+DATE: 2023-10-01 02:50:15
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: Leetcode
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Medium
+
+* Solution
+
+https://leetcode.cn/problems/next-greater-element-ii/
+
+#+begin_src python
+  from typing import List
+
+  class Solution:
+      def nextGreaterElements(self, nums: List[int]) -> List[int]:
+          n = len(nums)
+
+          # 保存的是索引。
+          # 单调递增(Stack顶是最小的元素) nums[top] < nums[top - 1]
+          stack = []
+
+          res = [-1] * n
+          for i in range(2 * n):
+
+              # 每一个Stack中的元素，只要比当前元素小，那么它的下一个更大的元素便是 nums[i % n]
+              while stack and nums[stack[-1]] < nums[i % n]:
+                  res[stack.pop()] = nums[i % n]
+
+              # 只有i小于n时，才入Stack
+              # i小于n时会入Stack，当i大于等于n时，数组中所有数都已经入过一次Stack了
+              # 这个时候，Stack中的所有数是还没有找到比它大的数了
+              if i < n:
+                  stack.append(i)
+          return res
+#+end_src

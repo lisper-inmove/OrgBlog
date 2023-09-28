@@ -1,0 +1,74 @@
+#+TITLE: 链表相交
+#+DATE: 2023-09-28 13:47:47
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+SUBTITLE: 有环链表 无环链表
+#+KEYWORDS: LinkedList
+#+CATEGORIES: 数据结构
+
+* 判断LinkedList是否相交
+#+begin_src python
+  def loopNode(l):
+      """ 如果LinkedList是循环的，返回入口点，否则返回None
+      """
+      slower, faster = l.header.next, l.header.next
+      while True:
+          faster = faster.next
+          slower = slower.next
+          if not faster:
+              return None
+          faster = faster.next
+          if faster == slower:
+              break
+
+      faster = l.header.next
+      while faster != slower:
+          faster = faster.next
+          slower = slower.next
+
+      return faster
+
+  def intersect(l1, l2, endPoint=None):
+      """ 判断两个LinkedList是否相交，如果相交，返回交点，否则返回None
+      endPoint: 如果是循环LinkedList，则传参为交点
+      """
+      h1, h2 = l1.header.next, l2.header.next
+      while h1 != h2:
+          h1 = h1.next if (h1 and h1 is not endPoint) else l2.header.next
+          h2 = h2.next if (h2 and h2 is not endPoint) else l1.header.next
+      if h1 is None and h2 is None:
+          return None
+      return h1
+
+  def intersect2(l1, l2):
+      """
+      l1 l2 有可能有环
+      1. l1, l2 无环时, loop1 = loop2 = None
+      2. 只有一个有环时，直接返回None
+      3. 有环时
+        1. 不相交
+        2. 相交
+          1. 在环外相交(也包括环入口点)，与无环情况相同
+          2. 在环上相交
+      """
+      loop1 = loopNode(l1)
+      loop2 = loopNode(l2)
+      if loop1 is None and loop2 is not None:
+          return None, None
+      if loop2 is None and loop1 is not None:
+          return None, None
+      # 无环 环外相交的情况
+      if loop1 == loop2:
+          return intersect(l1, l2, loop1)
+
+      # 环上相交 有环不相交的情况
+      # 因为有环，那么从loop1出发，如果能到达 loop2，说明是相交的，否则是不相交的
+      tmp = loop1.next
+      while tmp != loop1:
+          if tmp == loop2:
+              return loop1, loop2
+          tmp = tmp.next
+      return None, None
+#+end_src

@@ -1,0 +1,38 @@
+#+TITLE: 11. 盛水最多的容器
+#+DATE: 2023-10-09 14:50:56
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: 滑动窗口
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Medium
+
+* Solution
+
+两个指针分别指向 left = 0, right = n - 1
+计算水的容量。然后，舍弃短的那一根。
+#+NAME: 11.py
+#+begin_src python :results output
+  from typing import List
+
+  class Solution:
+      def maxArea(self, height: List[int]) -> int:
+          n = len(height)
+          l, r = 0, n - 1
+          area = float('-inf')
+          while l < r:
+              # 宽
+              w = r - l
+              # 较矮的作为高
+              h = min(height[l], height[r])
+              # 计算新的最大容量
+              area = max(w * h, area)
+
+              # 舍弃较短的那一根
+              if height[l] < height[r]:
+                  l += 1
+              else:
+                  r -= 1
+          return area
+#+end_src

@@ -1,11 +1,11 @@
-#+TITLE: 22. 合并K个升序链表
+#+TITLE: 22. 合并K个升序LinkedList
 #+DATE: 2023-09-28 19:03:29
 #+DISPLAY: t
 #+STARTUP: indent
 #+OPTIONS: toc:10
 #+AUTHOR: inmove
-#+KEYWORDS: Leetcode 链表
-#+CATEGORIES: Leetcode 链表
+#+KEYWORDS: Leetcode LinkedList
+#+CATEGORIES: Leetcode
 #+DIFFICULTY: Hard
 
 * Solution

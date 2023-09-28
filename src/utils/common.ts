@@ -10,6 +10,12 @@ export function decodeBase64(encoded: string): string {
   return decoded;
 }
 
+export function extractSubstring(pattern: string, str: string): string | null {
+  const regex = new RegExp(`${pattern}.*$`);
+  const result = str.match(regex);
+  return result ? result[0].slice(pattern.length) : null;
+}
+
 // TODO: CSS的参数从 Constants中读
 export function getTextStyle(styleName: string) {
   let style = {};

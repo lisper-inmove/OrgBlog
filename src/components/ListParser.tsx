@@ -25,12 +25,24 @@ function List({ordered, items}: Props) {
     });
   };
 
-  let divClassName = "w-9/10 mx-auto bg-gray-800 text-gray-200";
+  let divClassName = "pl-8 pb-5 w-9/10 mx-auto bg-gray-800 text-gray-200";
+  let ulDivClassName = "pl-8 w-9/10 mx-auto bg-gray-800 text-gray-200";
   let liStyle = {
-    marginTop: "5px",
-    paddingLeft: "10px",
+    // marginTop: "5px",
     color: Constants.liTextColor,
   };
+
+  let textColors = [
+    Constants.liTextColor,
+    Constants.li2TextColor,
+    Constants.li3TextColor,
+    Constants.li4TextColor,
+    Constants.li5TextColor,
+    Constants.li6TextColor,
+    Constants.li7TextColor,
+    Constants.li8TextColor,
+    Constants.li9TextColor,
+  ];
 
   if (ordered) {
     return (
@@ -40,7 +52,7 @@ function List({ordered, items}: Props) {
           <li key={index}
             style={{
               marginLeft: `${item.level * 20}px`,
-              ...liStyle,
+              color: `${textColors[item.level]}`
             }}
           >{item.index}. {renderValue(item.items)}</li>
         ))}
@@ -49,7 +61,7 @@ function List({ordered, items}: Props) {
     );
   } else {
     return (
-      <div className={divClassName}>
+      <div className={ulDivClassName}>
       <ul>
         {items.map((item, index) => (
           <li key={index} style={{

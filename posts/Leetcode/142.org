@@ -1,10 +1,10 @@
-#+TITLE: 142. 环形链表II
+#+TITLE: 142. 环形LinkedListII
 #+DATE: 2023-09-28 17:29:28
 #+DISPLAY: t
 #+STARTUP: indent
 #+OPTIONS: toc:10
 #+AUTHOR: inmove
-#+KEYWORDS: Leetcode 环形链表
+#+KEYWORDS: Leetcode 环形LinkedList
 #+CATEGORIES: Leetcode
 #+DIFFICULTY: Medium
 

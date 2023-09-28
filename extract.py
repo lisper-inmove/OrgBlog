@@ -10,7 +10,9 @@ directory_path = 'posts'
 metadata = []
 
 # 定义正则表达式模式
-pattern = re.compile(r'^#\+(TITLE|CATEGORIES|DATE|KEYWORDS|DIFFICULTY): (.+)$')
+pattern = re.compile(r'^#\+(TITLE|CATEGORIES|DATE|KEYWORDS|DIFFICULTY|SUBTITLE): (.+)$')
+
+aLeetcode = None
 
 # 使用 os.walk() 递归遍历目录
 for foldername, subfolders, filenames in os.walk(directory_path):
@@ -24,7 +26,16 @@ for foldername, subfolders, filenames in os.walk(directory_path):
         encoded_string = base64.b64encode(file_path.encode()).decode().rstrip('=')
 
         # 初始化文件元数据
-        file_metadata = {'path': file_path, 'id': encoded_string}
+        file_metadata = {
+            'path': file_path, 
+            'id': encoded_string,
+            'title': '',
+            'categories': '',
+            'date': '',
+            'keywords': '',
+            'difficulty': '',
+            'subtitle': ''
+        }
 
         with open(file_path, 'r') as file:
             while True:
@@ -37,11 +48,27 @@ for foldername, subfolders, filenames in os.walk(directory_path):
                     value = match.group(2).strip()
                     file_metadata[key.lower()] = value
 
-        if file_metadata.get("categories") is None:
-            print(filename)
+        title = file_metadata.get("title")
+        t = title.split(".")[0]
+        sort = 9999
+        if t.isdigit():
+            sort = int(t)
+        file_metadata.update({"sort": sort})
 
-        # 将文件元数据添加到总元数据字典中
+        # if file_metadata.get("categories") == "Leetcode" and (aLeetcode is None or aLeetcode.get("sort") > sort):
+        #     if aLeetcode is not None:
+        #         metadata.append(aLeetcode)
+        #     aLeetcode = file_metadata
+        # else:
+        #     # 将文件元数据添加到总元数据字典中
+        #     metadata.append(file_metadata)
+
         metadata.append(file_metadata)
+
+metadata.sort(key=lambda x: (x.get("categories"), x.get("sort")))
+
+# 将一个Leetcode放在最前面，让Leetcode总是放在最前在同
+# metadata.insert(0, aLeetcode)
 
 # 将元数据保存到 metadata.json 文件中
 with open('metadata.json', 'w') as json_file:

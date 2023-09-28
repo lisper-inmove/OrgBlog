@@ -1,0 +1,38 @@
+#+TITLE: 计数排序
+#+DATE: 2023-09-27 21:49:46
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: Algorithm 计数排序
+#+CATEGORIES: 排序
+
+* CountingSort
+#+begin_src python
+  def countingSort(arr):
+      """
+      适用于最大值比较小的整个数排序。
+      开辟一个数组A，数组大小由 max(arr) 决定。
+      然后遍历arr, A[arr[i]]每次加加。
+      最后再遍历A得到排序后的数组。
+      一般会当做基数排序的子过程。
+      时间复杂度为O(n)
+      """
+      # 找到数组中的最大和最小值
+      max_val = max(arr)
+      min_val = min(arr)
+
+      # 初始化计数数组
+      count = [0] * (max_val - min_val + 1)
+
+      # 计算每个元素的出现次数
+      for num in arr:
+          count[num - min_val] += 1
+
+      # 重建排序后的数组
+      sorted_arr = []
+      for i, cnt in enumerate(count):
+          sorted_arr.extend([i + min_val] * cnt)
+
+      return sorted_arr
+#+end_src

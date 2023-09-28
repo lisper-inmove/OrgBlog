@@ -1,0 +1,61 @@
+#+TITLE: 4. 寻找两个正序数组的中位数
+#+DATE: 2023-09-29 16:02:45
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: Leetcode
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Hard
+
+* Solution
+
+数组的中位数: 如果数组是偶数个，那么 中位数 = (a + b) / 2
+              如果是奇数个, 那么 中位数 = a
+其中，a，b都是数组最中间的那个数
+
+#+begin_src python
+  from typing import List
+
+  class Solution:
+      def findMedianSortedArrays(self, nums1: List[int], nums2: List[int]) -> float:
+          if len(nums1) > len(nums2):
+              nums1, nums2 = nums2, nums1
+
+          m, n = len(nums1), len(nums2)
+          low, high = 0, m
+
+          while low <= high:
+
+              # 将nums1分成两个部分 x0 = nums1[0..partitionX - 1], x1 = nums1[partitionX..m - 1]
+              partitionX = (low + high) // 2
+              # 将nums2分成两部分 y0 = nums1[0..partitionY - 1], y1 = nums2[partitionY..n - 1]
+              partitionY = (m + n + 1) // 2 - partitionX
+
+              # x0的个数 + y0的个数 = x1的个数 + y1的个数 (或者相差1)
+
+              #      x0/y0     x1/y1
+              # x:  ....x0Max, x1Min.....
+              # y:  ....y0Max, y1Min.....
+              # 4个关键值 nums1[partitionX - 1], nums2[partitionY - 1], nums1[partitionX], nums2[partitionY]
+              #           x0的最大值             y0最大值               x1最小值           y1最小值
+              # 如果 x0Max < y1Min 并且 y0Min < x1Max，那么这4个数就是数组最中间的4个数
+              # 并且此时只有 x0Max 与 y0Max的大小关系不知道
+              #              x0Min 与 y0Min的大小关系不知道
+
+              # 因为有可能，其中一个数级的长度很小，划分之后，有一部分是空数组
+              x0Max = float('-inf') if partitionX == 0 else nums1[partitionX - 1]
+              y0Max = float('-inf') if partitionY == 0 else nums2[partitionY - 1]
+              x1Min = float('inf') if partitionX == m else nums1[partitionX]
+              y1Min = float('inf') if partitionY == n else nums2[partitionY]
+
+              if x0Max <= y1Min and y0Max <= y1Min:
+                  if (m + n) % 2 == 0:
+                      return (max(x0Max, y0Max) + min(x1Min, y1Min)) / 2
+                  else:
+                      return max(x0Max, y0Max)
+              elif x0Max > y1Min:
+                  high = partitionX - 1
+              else:
+                  low = partitionX + 1
+#+end_src

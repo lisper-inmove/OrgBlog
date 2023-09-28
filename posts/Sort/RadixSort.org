@@ -1,0 +1,54 @@
+#+TITLE: 基数排序
+#+DATE: 2023-09-27 21:51:02
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: Algorithm 基数排序
+#+CATEGORIES: 排序
+
+* RadixSort
+#+begin_src python
+  def radixSort(arr):
+      """
+      先按个位排序，再按十位排序，直到最高位。
+      有效地利用了计数排序。
+      时间复杂度为O(nk)，其中k为最大位数
+      """
+      def countingSortForRadix(arr, position):
+          n = len(arr)
+          output = [0] * n
+          count = [0] * 10  # 因为每一位的数字范围是0-9
+
+          # 计算每个数字在当前位置的出现次数
+          for i in range(n):
+              index = (arr[i] // position) % 10
+              count[index] += 1
+
+          # 计算小于或等于当前数字的数字数量
+          for i in range(1, 10):
+              count[i] += count[i - 1]
+
+          # 构建输出数组
+          i = n - 1
+          while i >= 0:
+              index = (arr[i] // position) % 10
+              output[count[index] - 1] = arr[i]
+              count[index] -= 1
+              i -= 1
+
+          # 将排序后的结果复制回原数组
+          for i in range(n):
+              arr[i] = output[i]
+
+      # 找到最大值，以确定排序的次数
+      max_val = max(arr)
+      position = 1  # 初始位置为个位
+
+      # 对每一位进行计数排序
+      while max_val // position > 0:
+          countingSortForRadix(arr, position)
+          position *= 10
+
+      return arr
+#+end_src

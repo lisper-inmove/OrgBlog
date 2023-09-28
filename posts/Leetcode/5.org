@@ -1,0 +1,132 @@
+#+TITLE: 5. 最长回文子串
+#+DATE: 2023-09-29 13:43:09
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: Leetcode DynamicProgramming
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Medium
+
+* Solution
+
+#+begin_src python
+  class Solution:
+
+      def longestPalindrome(self, s: str) -> str:
+          longest = ""
+          for i in range(0, len(s)):
+              for j in range(i, len(s)):
+                  if j - i + 1 > len(longest) and self.isPalindrome(s, i, j):
+                      longest = s[i: j + 1]
+          return longest
+
+      def isPalindrome(self, s, start, end):
+          if start == end:
+              return True
+          if start == end - 1:
+              return s[start] == s[end]
+          return s[start] == s[end] and self.isPalindrome(s, start + 1, end - 1)
+
+      def dp(self, s):
+          if len(s) == 0:
+              return ""
+          n = len(s)
+          dp = [[False] * n for i in range(0, n)]
+          # 长度至少为1
+          longest = s[0]
+
+          # 填充 dp[i][i] 和 dp[i][i + 1]
+          for i in range(0, n - 1):
+              dp[i][i] = True
+              dp[i][i + 1] = s[i] == s[i + 1]
+              if dp[i][i + 1]:
+                  longest = s[i:i+2]
+
+          dp[n - 1][n - 1] = True
+
+          # 因为 dp[i][j] 依赖于 dp[i + 1][j - 1]，所以以长度为最外层的循环
+          for length in range(3, n + 1):
+              for i in range(0, n):
+                  j = i + length - 1
+                  if j > n - 1:
+                      continue
+                  dp[i][j] = s[i] == s[j] and dp[i + 1][j - 1]
+                  if dp[i][j] and length > len(longest):
+                      longest = s[i: j + 1]
+          return longest
+
+      def dp2(self, s):
+          if len(s) == 0:
+              return ""
+          if len(s) == 1:
+              return s
+          dp = [[False] * len(s) for i in range(0, len(s))]
+          longest = s[0]
+          for i in range(len(s) - 2, -1, -1):
+              dp[i][i] = True
+              for j in range(i + 1, len(s)):
+                  dp[i][j] = s[i] == s[j] and (j - i < 3 or dp[i + 1][j - 1])
+                  if dp[i][j] and j - i + 1 > len(longest):
+                      longest = s[i: j + 1]
+          return longest
+
+      def manacher(self, s):
+          # 高效利用前面已经得到的回文的信息
+          # 已知 以 i 为中心点的回文子串，长度为l, 那么 i - l ~ i ~ l + i 这一段的回文信息已经明确了
+          # 在计算l + i这一段的时候，可以充分利用 i - l这一段的回文信息
+          t = '#'.join(s)
+          t = f"#{t}#"  # t的长度一定是奇数
+
+          length = len(t)
+          p = [0] * length  # p[i]表示以t[i]为中心的回文串半径
+
+          # 这里的是c并不是最长的，而是当前最远的!!
+          c = 0             # 回文串能到达最远处的对称点
+          r = 0             # 与c对应的回文半径
+
+          maxLen = 0        # 最长回文串的长度
+          center = 0        # 最长回文串的中心
+
+          for i in range(0, length):
+              # mirror是i关于c的对称点
+              # 数轴上, mirror = c - (i - c)，也就是 2c - i
+              mirror = 2 * c - i
+
+              # 当i点在当前最长回文子串半径内时
+              # 它的回文信息肯定与 mirror 是部分一样的
+              if i < r:
+                  p[i] = min(r - i, p[mirror])
+
+              a = i + (p[i] + 1)
+              b = i - (p[i] + 1)
+
+              # 以i为中心点的回文信息
+              # 如果 i 的回文信息比它的mirror要长时
+              while a < length and b >= 0 and t[a] == t[b]:
+                  p[i] += 1
+                  a += 1
+                  b -= 1
+
+              # 更新最远回文中心点相关信息
+              if i + p[i] > r:
+                  c = i
+                  r = i + p[i]
+
+              # 更新最长回文中心点相关信息
+              if p[i] > maxLen:
+                  maxLen = p[i]
+                  center = i
+
+          start = (center - maxLen) // 2
+          end = start + maxLen
+          return s[start:end]
+
+
+  if __name__ == '__main__':
+      s = "babad"
+      print(Solution().longestPalindrome(s))
+      print(Solution().dp(s))
+      print(Solution().dp2(s))
+      print(Solution().manacher(s))
+#+end_src

@@ -64,14 +64,18 @@ export default function Navbar({ options }: NavbarProps) {
           </Tooltip>
         </Link>
 
-        <Link href="https://github.com/lisper-inmove" className="mr-5 text-inherit no-underline">
-          <Tooltip title="Github">
+        <Link href="https://github.com/lisper-inmove/OrgBlog" className="mr-5 text-inherit no-underline">
+          <Tooltip title="About This Blog">
             <GithubIcon />
           </Tooltip>
         </Link>
 
-        <div className="flex-grow text-2xl brightness-50 rotate-0">
-          Talk is cheap, show me the code
+        <div className="flex-grow text-2xl brightness-90 rotate-0"
+          style={{
+            textShadow: Constants.sloganTextShadow,
+          }}
+        >
+          Talk is Cheap Code can Speak
         </div>
         <div className="flex items-center mr-10" >
           <InputBase 

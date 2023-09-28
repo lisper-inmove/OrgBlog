@@ -1,0 +1,717 @@
+#+TITLE: C语言网络编程
+#+DATE: 2023-10-05 11:58:02
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+SUBTITLE: IO多路复用 Epoll
+#+KEYWORDS: Socket Epoll
+#+CATEGORIES: 网络编程
+
+* Socket
+
+服务端的一般书写方式: 以下函数在命令行中端通过 man xxx 都能看到详细信息。
+1. int socket(int domain, int type, int protocol);
+   1. 以下是domain常用的值:
+       1. AF_INET：IPv4协议族。
+       2. AF_INET6：IPv6协议族。
+       3. AF_UNIX 或 AF_LOCAL：本地通信协议族。
+   2. 以下是type常用的值:
+       1. SOCK_STREAM：提供序列化、可靠、双向、基于连接的字节流。通常用于TCP协议。
+       2. SOCK_DGRAM：提供无连接的、不可靠的数据报服务。通常用于UDP协议。
+       3. SOCK_RAW：提供原始套接字接口，允许直接访问底层协议。
+   3. 以下是protocol常用的值:
+       1. IPPROTO_TCP：指定使用TCP协议。
+       2. IPPROTO_UDP：指定使用UDP协议。
+       3. IPPROTO_SCTP：指定使用SCTP协议。
+2. int getsockopt(int sockfd, int level, int optname, void *optval, socklen_t *optlen) && int setsockopt(int sockfd, int level, int optname, const void *optval, socklen_t optlen);
+   1. 以下是 level常用的值:
+       1. SOL_SOCKET：通用套接字选项。
+       2. IPPROTO_IP：IP选项。
+       3. IPPROTO_TCP：TCP选项。
+       4. IPPROTO_UDP：UDP选项。
+   2. 以下是 optname 常用的值
+       1. SO_REUSEADDR：允许重用本地地址和端口。
+       2. SO_RCVBUF：接收缓冲区大小。
+       3. SO_SNDBUF：发送缓冲区大小。
+       4. SO_KEEPALIVE：保持连接活动。
+           1. TCP_KEEPCNT: 此选项用于指定在放弃连接之前，TCP应发送的保持活动探测(keepalive probes)的最大数量
+           2. TCP_KEEPIDLE: 选项用于指定在发送第一个保持活动探测之前的空闲时间。
+           3. TCP_KEEPINTVL: 选项用于指定两个连续保持活动探测之间的间隔时间。
+       5. TCP_NODELAY：禁用Nagle算法，使得小包可以更快地发送。
+3. bind
+4. int listen(int sockfd, int backlog);
+   backlog表示SYN连接队列与accept队列的最大总和
+5. accept
+6. recv/send
+
+#+NAME: Server.c
+#+begin_src c
+  #include <stdio.h>
+  #include <errno.h>
+  #include <unistd.h>
+  #include <sys/socket.h>
+  #include <netinet/in.h>
+  #include <string.h>
+  #include <fcntl.h>
+
+  #define BUFFER_LENGTH    1024
+
+  int main() {
+
+      /**
+         1. 创建套接字
+       ,*/
+      int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+      /**
+         2. 设置套接字选项
+       ,*/
+      int optval = 1;
+      if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0) {
+          printf("setsockopt error\n");
+          return -1;
+      }
+
+      /**
+         3. 创建地址
+       ,*/
+      struct sockaddr_in servaddr;
+      memset(&servaddr, 0, sizeof(struct sockaddr_in));
+      servaddr.sin_family = AF_INET;
+      // 和某块网卡绑定上。INADDR_ANY表示0.0.0.0，如果有两块网卡，都能发起连接。
+      // 如果是指定的IP，那么只能通过那块网卡连接。
+      servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+      servaddr.sin_port = htons(9999);
+
+      /**
+         4. 套接字与地址绑定
+       ,*/
+      if (-1 == bind(sockfd, (struct sockaddr*)&servaddr, sizeof(struct sockaddr))) {
+          printf("Bind Falied: %s", strerror(errno));
+          return -1;
+      }
+
+      /**
+         5. 在套接字上监听。此时进入了 listen 状态中，可以正常完成三次握手了。
+         三次握手完成之后，客户端的连接会放在就绪队列中。
+       ,*/
+      listen(sockfd, 10);
+
+      /**
+         6. 将sockfd套接字设置为非阻塞。在没有客户端连接时，accept会直接返回-1。
+         同样recv在没有数据可读时也会直接返回-1。
+       ,*/
+      /* int flags = fcntl(sockfd, F_GETFL, 0); */
+      /* flags |= O_NONBLOCK; */
+      /* fcntl(sockfd, F_SETFL, flags); */
+
+      /**
+         7. 从就绪队列中读取一个连接。因为 sockfd是阻塞的，所以accept函数会阻塞在此
+       ,*/
+      struct sockaddr_in clientaddr;
+      socklen_t len = sizeof(clientaddr);
+      int clientfd = accept(sockfd, (struct sockaddr*)&clientaddr, &len);
+      printf("A New Client: %d\n", clientfd);
+
+      /**
+         8. 从套接字读与写。
+         内核层面，每个套接字有个读写缓冲区。
+         recv 就是从内核态将字节读到用户态
+         send 就是从用户态写入到内核态。send返回成功并不代码客户端接收成功。只是发送到了内核
+       ,*/
+      char buffer[BUFFER_LENGTH] = {0};
+      int ret = recv(clientfd, buffer, BUFFER_LENGTH, 0);
+      send(clientfd, buffer, ret, 0);
+
+  }
+
+#+end_src
+
+* Select 与 Poll
+
+在终端: man selecet and man poll
+
+select 与 poll的问题
+
+1. 效率和可扩展性:
+    1. FD_SET大小限制: select 使用 fd_set 结构来指定要监视的文件描述符集合。然而，fd_set 的 *大小是固定的* ，通常限制为1024个文件描述符。这限制了 select 在处理大量并发连接时的可扩展性。
+    2. 线性扫描: select和poll 都需要 *线性扫描整个文件描述符集合* 以查找准备好的描述符，这可能会在有大量文件描述符时变得效率低下。
+    3. 数据结构复制: select 需要在每次调用时 *复制文件描述符集合的数据结构* ，这会消耗额外的CPU和内存资源。而 poll 不需要这样做。
+       #+begin_verse
+       - 当调用 select 函数时，它会在内部创建readfds、writefds 和 exceptfds 参数所指向的文件描述符集合的副本。
+       - 然后，select 函数会在这些副本上操作，以确定哪些文件描述符是活动的。
+       - 当 select 函数返回时，它会将活动的文件描述符信息写回到原始的文件描述符集合中（也就是您传递给 select 函数的集合），并销毁之前创建的副本。
+       #+end_verse
+2. 实时更新和动态分配:
+    1. 动态分配: poll 允许动态分配 pollfd 数组，可以更容易地处理动态数量的文件描述符。 *而 select 则需要手动管理 fd_set 数据结构* ，这可能会更加复杂和容易出错。
+    2. 实时更新: select 在添加或删除文件描述符时可能需要 *重新构建 fd_set 数据结构* ，而 poll 可以更容易地通过简单地添加或删除 pollfd 结构来更新文件描述符集合。
+    3. 可移植性: select 和 poll 在不同的系统平台上可能会有不同的实现和限制，但通常 *select 在不同平台上的可移植性可能稍好一些* 。
+    4. 精度和分辨率: select和poll 的 *超时精度和时间分辨率可能不如其他一些IO多路复用机制* ，例如 epoll 或 kqueue。
+    5. 事件报告机制: select和poll *只能报告一个简单的事件集合* (例如可读，可写，错误)。相比之下，其他一些IO多路复用机制(例如 epoll 或 kqueue)提供了更丰富、更精细的事件报告机制。
+
+#+begin_src c
+  #include <stdio.h>
+  #include <errno.h>
+  #include <unistd.h>
+  #include <sys/socket.h>
+  #include <netinet/in.h>
+  #include <string.h>
+  #include <fcntl.h>
+  #include <sys/select.h>
+  #include <sys/poll.h>
+
+
+  #define BUFFER_LENGTH 1024
+  #define POLL_SIZE     1024
+
+  int main() {
+
+      /**
+         1. 创建套接字
+       ,*/
+      int sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
+      /**
+         2. 设置套接字选项
+       ,*/
+      int optval = 1;
+      if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0) {
+          printf("setsockopt error\n");
+          return -1;
+      }
+
+      /**
+         3. 创建地址
+       ,*/
+      struct sockaddr_in servaddr;
+      memset(&servaddr, 0, sizeof(struct sockaddr_in));
+      servaddr.sin_family = AF_INET;
+      // 和某块网卡绑定上。INADDR_ANY表示0.0.0.0，如果有两块网卡，都能发起连接。
+      // 如果是指定的IP，那么只能通过那块网卡连接。
+      servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+      servaddr.sin_port = htons(9999);
+
+      /**
+         4. 套接字与地址绑定
+       ,*/
+      if (-1 == bind(sockfd, (struct sockaddr*)&servaddr, sizeof(struct sockaddr))) {
+          printf("Bind Falied: %s", strerror(errno));
+          return -1;
+      }
+
+      /**
+         5. 在套接字上监听。此时进入了 listen 状态中，可以正常完成三次握手了。
+         三次握手完成之后，客户端的连接会放在就绪队列中。
+       ,*/
+      listen(sockfd, 10);
+
+      /**
+         6. 将sockfd套接字设置为非阻塞。在没有客户端连接时，accept会直接返回-1。
+         同样recv在没有数据可读时也会直接返回-1。
+       ,*/
+      /* int flags = fcntl(sockfd, F_GETFL, 0); */
+      /* flags |= O_NONBLOCK; */
+      /* fcntl(sockfd, F_SETFL, flags); */
+
+  #elif 0  // select
+
+      /**
+         若干bit位
+
+         #define __FD_SETSIZE = 1024
+         typedef struct {
+             unsigned long fds_bits[__FD_SETSIZE / (8 * sizeof(long))];
+         } __kernel_fd_set;
+
+      ,*/
+      fd_set rfds, rset;
+      // 将所有位置0
+      FD_ZERO(&rfds);
+      // 将sockfd(一般为3)位置1
+      FD_SET(sockfd, &rfds);
+
+      int maxfd = sockfd;
+      int clientfd = 0;
+
+      while (1) {
+          rset = rfds;
+          /**
+             select函数的第一个参数表示你关心的最大的文件描述符 + 1
+             select的局限性:
+             1. 每次都要把 rset 复制到内核空间中，有一次数据拷贝
+             2. select通过循环来判断文件描述是否可用O(n)
+             3. 它的集合大小是有限的
+           ,*/
+          int nready = select(maxfd + 1, &rset, NULL, NULL, NULL);
+
+          printf("Select Event Loop\n");
+
+          /**
+             sockfd 是一个数字 FD_ISSET 表示 rset 的第 sockfd 位是否置1
+           ,*/
+          if (FD_ISSET(sockfd, &rset)) {
+              struct sockaddr_in clientaddr;
+              socklen_t len = sizeof(clientaddr);
+              clientfd = accept(sockfd, (struct sockaddr*)&clientaddr, &len);
+              printf("Accept %d\n", clientfd);
+
+              /**
+                 将clientfd位置1
+                 因为一个进程的文件描述符是递增的，所以maxfd设置为clientfd
+               ,*/
+              FD_SET(clientfd, &rfds);
+              if (clientfd > maxfd) maxfd = clientfd;
+
+              if (--nready == 0) continue;
+          }
+
+          /**
+
+             sockfd是用于监听客户端连接的。所以这里从 sockfd + 1开始循环，maxfd为最新的连接的fd，所以到 maxfd 为止。
+
+           ,*/
+          int i = 0;
+          for (i = sockfd + 1; i <= maxfd; i++) {
+              if (FD_ISSET(i, &rset)) {
+                  char buffer[BUFFER_LENGTH] = {0};
+                  int ret = recv(i, buffer, BUFFER_LENGTH, 0);
+                  if (ret == 0) {
+                      close(i);
+                      break;
+                  }
+                  printf("ret: %d, %d, buffer: %s\n", ret, i, buffer);
+                  send(i, buffer, ret, 0);
+              }
+          }
+      }
+
+  #elif 1  // poll
+      /**
+         struct pollfd {
+             int fd;
+             short events;  // 关注的事件
+             short revents; // 返回的事件
+         };
+      ,*/
+      struct pollfd fds[POLL_SIZE] = {0};
+      fds[sockfd].fd = sockfd;
+      fds[sockfd].events = POLLIN;
+
+      int maxfd = sockfd;
+      int clientfd = 0;
+
+      struct sockaddr_in clientaddr;
+      socklen_t len = sizeof(clientaddr);
+
+      while (1) {
+          /**
+             fds: 其中每个 struct pollfd 结构用于指定一个要监控的文件描述符以及要监控的事件类型。
+             nfds: 指定 fds 数组中 struct pollfd 结构的数量。
+             timeout: 超时时间，-1表示阻塞
+           ,*/
+          int nready = poll(fds, maxfd + 1, -1);
+          if (fds[sockfd].revents & POLLIN) {
+              clientfd = accept(sockfd, (struct sockaddr*)&clientaddr, &len);
+              printf("accept: %d\n", clientfd);
+
+              fds[clientfd].fd = clientfd;
+              fds[clientfd].events = POLLIN;
+
+              if (clientfd > maxfd) maxfd = clientfd;
+              if (--nready == 0) continue;
+          }
+          int i = 0;
+          for (i = sockfd + 1; i <= maxfd; i++) {
+              if (fds[i].revents & POLLIN) {
+                  char buffer[BUFFER_LENGTH] = {0};
+                  int ret = recv(i, buffer, BUFFER_LENGTH, 0);
+                  if (ret == 0) {
+                      fds[i].fd = -1;
+                      fds[i].events = 0;
+                      close(i);
+                      break;
+                  }
+                  printf("ret: %d, %d, buffer: %s, %p\n", ret, i, buffer, &buffer);
+                  send(i, buffer, ret, 0);
+              }
+          }
+      }
+
+  #endif
+
+
+  }
+
+#+end_src
+* Epoll
+
+Epoll有三个关键的函数:
+
+1. epoll_create(int size), epoll_create1(int flag): size参数不再重要，大于0即可。
+2. epoll_ctl(int epfd, int op, int fd, struct epoll_event *event);
+   1. epoll实例的文件描述符，由epoll_create返回。
+   2. 操作类型，可以是以下几种：
+      1. EPOLL_CTL_ADD(注册新的文件描述符)
+      2. EPOLL_CTL_MOD(修改已注册的文件描述符)
+      3. EPOLL_CTL_DEL(删除已注册的文件描述符)
+3. epoll_wait(int epfd, struct epoll_enevt *events, int length, int timeout):
+   1. epfd: epoll实例的文件描述符，由epoll_create返回
+   2. events: 指向epoll_event结构数组的指针，用于接收就绪的事件。
+   3. length: events数组的大小，即可以接收的最大事件数量。
+   4. timeout: 超时时间(以毫秒为单位)。如果设置为-1，则epoll_wait会无限期阻塞直至至少有一个事件就绪。如果设置为0，则epoll_wait将立即返回，无论是否有事件就绪。
+
+#+begin_src c
+  struct epoll_event {
+      // 关心的事件
+      uint32_t     events;
+      // 用户数据
+      epoll_data_t data;
+  };
+#+end_src
+
+** 边缘触发与水平触发
+
+/水平触发/ 通常更易于理解和使用，而 /边缘触发/  *可能会提供更高的性能* ，尤其是在高负载和大量并发连接的情况下。
+1. *水平触发 (Level-triggered) 默认*:
+   1. 在水平触发机制中，只要条件满足(例如，数据可读或可写)，事件就会被触发。即使在事件被处理程序处理之后，只要条件继续满足，事件会再次被触发。更容易处理，因为只要条件满足，事件就会被触发。这使得程序逻辑变得简单直接。
+   2. 在错误处理方面可能更为宽容，因为如果一个事件没有被正确处理，它会再次被触发。
+2. *边缘触发 (Edge-triggered)*:
+   1. 在边缘触发机制中，只有条件的状态改变时(例如，从不可读变为可读或从不可写变为可写)事件才会被触发。
+   2. 一旦事件被触发，除非有另一个状态变化，否则它不会再次被触发。需要更复杂的处理逻辑，因为程序需要确保完全处理了触发的事件，以避免丢失任何状态变化的通知。
+   3. 边缘触发 需要更仔细的错误处理，因为如果在第一次触发时未能正确处理事件，可能会丢失该事件。
+
+** Server.c
+#+NAME: Server.c
+#+begin_src c
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <string.h>
+  #include <sys/types.h>
+  #include <sys/socket.h>
+  #include <netdb.h>
+  #include <unistd.h>
+  #include <fcntl.h>
+  #include <sys/epoll.h>
+  #include <errno.h>
+  #include "hash_table.c"
+
+  #define MAXEVENTS 1024
+  #define MAXDATASIZE 4096
+
+  typedef struct connection_s connection_t;
+
+  struct connection_s {
+      int fd;
+      char *rbuf;
+      char *sbuf;
+      int (*rcb)(connection_t *);
+      int (*scb)(connection_t *);
+  };
+
+  static int make_socket_non_blocking(int sfd) {
+      int flags, s;
+
+      flags = fcntl(sfd, F_GETFL, 0);
+      if (flags == -1) {
+          perror("fcntl F_GETFL");
+          return -1;
+      }
+      flags |= O_NONBLOCK;
+      s = fcntl(sfd, F_SETFL, flags);
+
+      if (s == -1) {
+          perror("fcntl F_SETFL");
+          return -1;
+      }
+      return 0;
+  }
+
+  static int create_and_bind(char *port) {
+      struct addrinfo hints;
+      struct addrinfo *result, *rp;
+      int s, sfd;
+
+      memset(&hints, 0, sizeof(struct addrinfo));
+      hints.ai_family = AF_UNSPEC;
+      hints.ai_socktype = SOCK_STREAM;
+      hints.ai_flags = AI_PASSIVE;
+      s = getaddrinfo(NULL, port, &hints, &result);
+      if (s != 0) {
+          fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
+          return -1;
+      }
+
+      for (rp = result; rp != NULL; rp = rp->ai_next) {
+          sfd = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+          if (sfd == -1) continue;
+          int optval = 1;
+          if (setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) == -1) {
+              perror("Setsockopt");
+              return -1;
+          }
+
+          s = bind(sfd, rp->ai_addr, rp->ai_addrlen);
+          if (s == 0) {
+              break;
+          }
+          close(sfd);
+      }
+      if (rp == NULL) {
+          fprintf(stderr, "Could not bind\n");
+      }
+      freeaddrinfo(result);
+      return sfd;
+  }
+
+  void init_server(struct epoll_event event, int efd, int sfd) {
+      event.data.fd = sfd;
+      event.events = EPOLLIN | EPOLLET;
+      if (epoll_ctl(efd, EPOLL_CTL_ADD, sfd, &event)) {
+          perror("Epoll Ctl");
+          abort();
+      }
+  }
+
+  int new_connect(struct epoll_event event, int sfd, int efd) {
+      int s;
+      struct sockaddr in_addr;
+      socklen_t in_len;
+      int infd;
+      char hbuf[NI_MAXHOST], sbuf[NI_MAXSERV];
+      in_len = sizeof(in_addr);
+      infd = accept(sfd, &in_addr, &in_len);
+      if (infd == -1) {
+          if ((errno == EAGAIN) || (errno == EWOULDBLOCK)) {
+              return -1;
+          } else {
+              return -1;
+          }
+      }
+      s = getnameinfo(&in_addr, in_len, hbuf, sizeof(hbuf), sbuf, sizeof(sbuf), NI_NUMERICHOST | NI_NUMERICSERV);
+      s = make_socket_non_blocking(infd);
+      if (s == -1) abort();
+
+      event.data.fd = infd;
+      event.events = EPOLLIN | EPOLLET;
+      s = epoll_ctl(efd, EPOLL_CTL_ADD, infd, &event);
+      if (s == -1) {
+          perror("epoll_ctl");
+          abort();
+      }
+      printf("new connection: %d\n", infd);
+      return infd;
+  }
+
+  int scb(connection_t *conn) {
+      strncpy(conn->sbuf, "Hello", 6);
+      int s = write(conn->fd, conn->sbuf, 6);
+      if (s == -1) {
+          if (errno == EPIPE) {
+              return -1;
+          }
+      }
+      return 0;
+  }
+
+  int rcb(connection_t *conn) {
+      while (1) {
+          ssize_t count;
+          count = read(conn->fd, conn->rbuf, MAXDATASIZE * sizeof(char));
+          conn->rbuf[count] = '\0';
+          printf("Read Data from fd, end: %s, %ld\n", conn->rbuf, count);
+          if (count == -1) {
+              if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                  // 数据读完了
+                  return 0;
+              }
+          } else if (count == 0) {
+              // 客户端关闭了
+              return -1;
+          }
+      }
+      return 0;
+  }
+
+  int close_and_free(HashTable *ht, connection_t *conn) {
+      printf("Client Closed: %d\n", conn->fd);
+      free(conn->rbuf);
+      free(conn->sbuf);
+      free(conn);
+      ht_delete(ht, conn->fd);
+
+  }
+
+  int main(int argc, char *argv[]) {
+      int sfd, efd, s;
+
+      struct epoll_event event;
+      struct epoll_event *events;
+      HashTable *conn_ht = ht_create(1024);
+
+      if (argc != 2) {
+          fprintf(stderr, "Usage: %s [port]\n", argv[0]);
+          exit(EXIT_FAILURE);
+      }
+
+      sfd = create_and_bind(argv[1]);
+      if (sfd == -1) {
+          abort();
+      }
+
+      s = make_socket_non_blocking(sfd);
+      if (s == -1) {
+          abort();
+      }
+
+      s = listen(sfd, SOMAXCONN);
+      if (s == -1) {
+          perror("listen");
+          abort();
+      }
+
+      efd = epoll_create1(0);
+      if (efd == -1) abort();
+
+      init_server(event, efd, sfd);
+      events = calloc(MAXEVENTS, sizeof(event));
+
+      while(1) {
+          int n, i;
+          n = epoll_wait(efd, events, MAXEVENTS, 1000);
+          for (i = 0; i < n; i++) {
+              if ((events[i].events & EPOLLERR) ||
+                  (events[i].events & EPOLLHUP) ||
+                  (!(events[i].events & EPOLLIN || events[i].events & EPOLLOUT))) {
+                  fprintf(stderr, "Epoll Error\n");
+                  close(events[i].data.fd);
+                  continue;
+              } else if (sfd == events[i].data.fd) {
+                  int infd = -1;
+                  while(1) {
+                      infd = new_connect(events[i], sfd, efd);
+                      if (infd == -1) {
+                          break;
+                      }
+
+                      connection_t *conn = (connection_t *)malloc(sizeof(connection_t));
+                      memset(conn, 0, sizeof(connection_t));
+                      conn->rbuf = (char *)malloc(MAXDATASIZE);
+                      memset(conn->rbuf, 0, sizeof(char) * MAXDATASIZE);
+                      conn->sbuf = (char *)malloc(MAXDATASIZE);
+                      memset(conn->sbuf, 0, sizeof(char) * MAXDATASIZE);
+                      conn->fd = infd;
+                      conn->rcb = rcb;
+                      conn->scb = scb;
+                      ht_insert(conn_ht, infd, (void *)conn);
+                  }
+              } else if (events[i].events & EPOLLIN) {
+                  connection_t *conn = (connection_t *)ht_search(conn_ht, events[i].data.fd);
+                  if (conn->rcb(conn) == -1) { // 读的时候客户端关闭了
+                      close_and_free(conn_ht, conn);
+                      continue;
+                  }
+                  events[i].events = EPOLLET | EPOLLOUT;
+                  epoll_ctl(efd, EPOLL_CTL_MOD, events[i].data.fd, &events[i]);
+                  printf("Read Data from new connection: %s,%d\n", conn->rbuf, events[i].events & EPOLLIN);
+
+              } else if (events[i].events & EPOLLOUT) {
+
+                  connection_t *conn = (connection_t *)ht_search(conn_ht, events[i].data.fd);
+                  if (conn != NULL) {
+                      if (scb(conn) == -1) { // 写的时候客户端关闭了
+                          close_and_free(conn_ht, conn);
+                          continue;
+                      }
+                  }
+                  events[i].events = EPOLLET | EPOLLIN;
+                  epoll_ctl(efd, EPOLL_CTL_MOD, events[i].data.fd, &events[i]);
+
+              }
+          }
+      }
+
+      return 0;
+  }
+#+end_src
+
+#+NAME: hash_table.c
+#+begin_src c
+  #include <stdio.h>
+  #include <stdbool.h>
+  #include <stdlib.h>
+
+  #define TABLE_SIZE 1024
+
+  typedef struct Entry {
+      int key;
+      void *value;
+      bool used;
+  } Entry;
+
+  typedef struct HashTable {
+      int size;
+      Entry entries[0];
+  } HashTable;
+
+  HashTable *ht_create(int table_size) {
+      HashTable *ht = (HashTable *)malloc(sizeof(HashTable) + table_size * sizeof(Entry));
+      ht->size = table_size;
+      return ht;
+  }
+
+  // 哈希函数，简单地使用 key 模 table size
+  int hash(HashTable *ht, int key) {
+      return key % ht->size;
+  }
+
+  // 插入操作
+  void ht_insert(HashTable *ht, int key, void *value) {
+      int index = hash(ht, key);
+      while (ht->entries[index].used && ht->entries[index].key != key) {
+          index = (index + 1) % ht->size;
+      }
+      ht->entries[index].key = key;
+      ht->entries[index].value = value;
+      ht->entries[index].used = true;
+  }
+
+  // 查询操作
+  void *ht_search(HashTable *ht, int key) {
+      int index = hash(ht, key);
+      while (ht->entries[index].used) {
+          if (ht->entries[index].key == key) {
+              return ht->entries[index].value;
+          }
+          index = (index + 1) % ht->size;
+      }
+      return NULL;  // 如果找不到，返回-1
+  }
+
+  // 删除操作
+  void ht_delete(HashTable *ht, int key) {
+      int index = hash(ht, key);
+      while (ht->entries[index].used) {
+          if (ht->entries[index].key == key) {
+              ht->entries[index].used = false;
+              return;
+          }
+          index = (index + 1) % ht->size;
+      }
+  }
+
+  /* int main() { */
+  /*     HashTable *ht = ht_create(TABLE_SIZE); */
+  /*     void *test1 = (void *)malloc(sizeof(int)); */
+  /*     void *test2 = (void *)malloc(sizeof(int)); */
+  /*     *(int *)test1 = 42; */
+  /*     *(int *)test2 = 43; */
+  /*     ht_insert(ht, 10, test1); */
+  /*     ht_insert(ht, 20, test2); */
+  /*     printf("%d\n", *((int *)ht_search(ht, 10)));  // 输出20 */
+  /*     ht_delete(ht, 10); */
+  /*     printf("%p\n", (int *)ht_search(ht, 10));  // 输出-1 */
+  /*     return 0; */
+  /* } */
+
+#+end_src

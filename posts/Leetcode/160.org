@@ -1,10 +1,10 @@
-#+TITLE: 160. 相交链表
+#+TITLE: 160. 相交LinkedList
 #+DATE: 2023-09-28 18:43:15
 #+DISPLAY: t
 #+STARTUP: indent
 #+OPTIONS: toc:10
 #+AUTHOR: inmove
-#+KEYWORDS: Leetcode 链表
+#+KEYWORDS: Leetcode LinkedList
 #+CATEGORIES: Leetcode
 #+DIFFICULTY: Easy
 

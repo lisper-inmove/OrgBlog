@@ -1,0 +1,71 @@
+#+TITLE: 239. 滑动窗口最大值
+#+DATE: 2023-10-07 20:03:08
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: DoubleDualQueue
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Hard
+
+* Solution
+
+#+NAME: solution.py
+#+begin_src python :results output
+  """
+  有一个数组和一个大小为w的窗口。w从最左边滑到最右边，窗口每次滑动一个位置
+  如，数组为 [4, 3, 5, 4, 3, 3, 6, 7] w = 3
+  [4 3 5] 4 3 3 6 7  # 最大值为 5
+  4 [3 5 4] 3 3 6 7  # 5
+  4 3 [5 4 3] 3 6 7  # 5
+  4 3 5 [4 3 3] 6 7  # 4
+  4 3 5 4 [3 3 6] 7  # 6
+  4 3 5 4 2 [3 6 7]  # 7
+  返回值为 [5, 5, 5, 4, 6, 7]，要求时间复杂度为O(N)，N为数组长度
+  """
+
+  from typing import List
+  from collections import deque
+
+  class Solution:
+      def maxSlidingWindow(self, nums: List[int], k: int) -> List[int]:
+          # 准备一个队列。队首为最大值，从队首到队尾保持大小有序
+          # 队列中保存的是元素下标
+          queue = deque()
+          result = []
+          # 记录当前处理了几个元素
+          scanNumber = 0
+          n = len(nums)
+          for i in range(0, n):
+
+              # 从队尾开始添加当前元素
+              # 从队尾开始，弹出一个元素，如弹出的元素小于当前元素，那么它一定没有机会成为最大的了
+              # 当找到第一个比nums[i]大的元素，假设为x，就把x再加到队尾
+              while queue:
+                  index = queue.popleft()
+                  if i - index >= k:
+                      continue
+                  if nums[i] > nums[index]:
+                      continue
+                  queue.appendleft(index)
+                  break
+
+              # 将当前元素加到队尾
+              queue.appendleft(i)
+
+              # 忆处理元素个数小于k,直接跳过
+              scanNumber += 1
+              if scanNumber < k:
+                  continue
+
+              # 找到当前最大值
+              # 当前最大值有可能已经超过k个了，所以要先从队首开始，把超过k的元素都排除
+              while queue:
+                  maxIndex = queue.pop()
+                  if i - maxIndex >= k:
+                      continue
+                  result.append(nums[maxIndex])
+                  queue.append(maxIndex)
+                  break
+          return result
+#+end_src

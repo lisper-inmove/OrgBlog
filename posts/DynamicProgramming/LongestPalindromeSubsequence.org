@@ -1,0 +1,59 @@
+#+TITLE: 最长回文子序列
+#+DATE: 2023-09-27 19:54:11
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: 动态规划
+#+CATEGORIES: 动态规划 
+
+* 最长回文子序列
+#+begin_src python
+
+  # 定一个字符串str, 返回这个字符串的最长回文序列长度
+  # 比如: str = "a12b3c43def2ghi1kpm"
+  # 最长回文子序列是"1234321" 或者 "123c321"，返回长度7
+  # 1. 一个串的最长回文子序列就是，和它的逆序串的最长公共子序列
+
+  def longestPalindromeSubsequence(s):
+      if s is None or len(s) == 0:
+          return 0
+
+      def process(s, L, R):
+          if L == R:
+              return 1
+          elif L == R - 1:
+              return 2 if s[L] == s[R] else 1
+          else:
+              p1 = process(s, L + 1, R - 1)
+              p2 = process(s, L + 1, R)
+              p3 = process(s, L, R - 1)
+              p4 = p1 + 2 if s[L] == s[R] else 0
+              return max(max(p1, p2), max(p3, p4))
+
+      return process(s, 0, len(s) - 1)
+
+
+  def longestPalindromeSubsequenceDP(s):
+      dp = [[0] * len(s) for i in range(0, len(s))]
+
+      for i in range(0, len(s) - 1):
+          dp[i][i] = 1
+          dp[i][i + 1] = 2 if s[i] == s[i + 1] else 1
+
+      dp[len(s) - 1][len(s) - 1] = 1
+
+      for i in range(len(s) - 3, -1, -1):
+          for j in range(i + 2, len(s)):
+              p1 = dp[i + 1][j - 1]
+              p2 = dp[i + 1][j]
+              p3 = dp[i][j - 1]
+              p4 = p1 + 2 if s[i] == s[j] else 0
+              dp[i][j] = max(max(p1, p2), max(p3, p4))
+      return dp[0][len(s) - 1]
+
+
+  s = "a12b3c43def2ghi1kpm"
+  print(longestPalindromeSubsequence(s))
+  print(longestPalindromeSubsequenceDP(s))
+#+end_src

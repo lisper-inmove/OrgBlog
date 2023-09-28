@@ -33,9 +33,9 @@ export default function VerseParser({verse}: Props) {
     });
   };
   
-  return (<div className="w-9/10 mx-auto bg-gray-800 text-gray-200">
+  return (<div className="w-9/10 pb-5 mx-auto bg-gray-800 text-gray-200">
     {verse.map((v, index) => (
-      <div key={index} className="p-1">
+      <div key={index}>
         {renderValue(v.items)}
       </div>
     ))} 

@@ -1,0 +1,41 @@
+#+TITLE: 24. 两两交换LinkedList中的结点
+#+DATE: 2023-09-29 13:38:14
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: Leetcode LinkedList
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Medium
+
+* Solution
+#+begin_src python
+  from typing import Optional
+
+  class ListNode:
+      def __init__(self, val=0, next=None):
+          self.val = val
+          self.next = next
+
+  class Solution:
+      def swapPairs(self, head: Optional[ListNode]) -> Optional[ListNode]:
+          if head is None:
+              return head
+          if head.next is None:
+              return head
+          satellite = ListNode()
+          satellite.next = head
+          first, second = head, head.next
+          _prev, _next = satellite, second.next
+          while second:
+              first.next = second.next
+              second.next = first
+              _prev.next = second
+              _prev = first
+              first = first.next
+              if first:
+                  second = first.next
+              else:
+                  second = None
+          return satellite.next
+#+end_src

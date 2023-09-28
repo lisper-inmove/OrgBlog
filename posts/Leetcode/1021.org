@@ -1,0 +1,32 @@
+#+TITLE: 1021. 删除最外层括号
+#+DATE: 2023-10-07 22:36:23
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: Stack
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Easy
+
+* Solution
+
+遍历字符串，遇到 '(' 入栈，遇到'(' 时出栈。
+出栈之后如果栈为空了，说明刚才出栈的索引和当前索引组成一个最外层括号。
+
+#+NAME: 1021.py
+#+begin_src python :results output
+  class Solution:
+      def removeOuterParentheses(self, s: str) -> str:
+          if not s:
+              return s
+          stack = []
+          result = []
+          for index, bracket in enumerate(s):
+              if bracket == '(':
+                  stack.append(index)
+              else:
+                  pair = stack.pop()
+                  if not stack:
+                      result.append(s[pair + 1:index])
+          return "".join(result)
+#+end_src

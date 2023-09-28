@@ -27,7 +27,7 @@ Service使用Endpoints对象来跟踪Pod的IP地址。
 1. Always: 当容器失效时,由kubelet自动重启该容器
 2. OnFailure: 当容器终止运行且退出码不为0时由kubelet自动重启
 3. Never: 无论如何，不重启
-   * InitContainer
+* InitContainer
 在应用容器启动之前运行，用于完成一些预备工作。
 1. 环境初始化：例如，设置配置文件或创建必要的目录和权限。
 2. 依赖检查：例如，等待一个数据库或其他服务变得可用。

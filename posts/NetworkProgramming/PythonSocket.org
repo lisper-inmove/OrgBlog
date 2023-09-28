@@ -1,0 +1,420 @@
+#+TITLE: Python套接字编程
+#+DATE: 2023-10-03 17:39:21
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+SUBTITLE: 套接字C-S 高并发: Epoll,内置selectors,asyncio,协程
+#+KEYWORDS: Epoll
+#+CATEGORIES: 网络编程
+
+* Single TCP Client-Server
+
+#+NAME: base.py
+#+begin_src python
+  class Base:
+
+      def __init__(self, host=None, port=None):
+          if host is None:
+              host = "127.0.0.1"
+          if port is None:
+              port = "3355"
+          self.host = host
+          self.port = port
+#+end_src
+#+NAME: Client1.py
+#+begin_src python
+  import socket
+  import time
+  from base import Base
+
+  class Client(Base):
+
+      def run(self):
+          sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+          sock.connect((self.host, self.port))
+          sock.sendall(b"Hello World")
+          print(sock.recv(1024))
+          # 仅测试用，所以服务端没有做异常处理
+          # 如果，发送完马上就关闭有可能造成服务端异常退出
+          # 所以，这里暂停1秒，等待服务端完成
+          time.sleep(1)
+          sock.close()
+
+
+  if __name__ == '__main__':
+      Client().run()
+#+end_src
+#+NAME: Server1.py
+#+begin_src python
+  import socket
+  from base import Base
+
+  class Server(Base):
+
+      def run(self):
+          sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+          sock.bind((self.host, self.port))
+          sock.listen()
+          conn, addr = sock.accept()
+          while True:
+              data = conn.recv(1024)
+              if not data:
+                  break
+              conn.sendall(f"You Said: {data.decode()}".encode())
+          conn.close()
+
+
+  if __name__ == '__main__':
+      Server().run()
+#+end_src
+
+1. 服务端的一般流程
+   1. 调用socket函数创建一个套接字
+   2. 调用bind绑定网卡与端口
+   3. 调用listen监听，等待连接
+   4. 有请求到来时调用accept获取一个连接，并为其分配一个fd
+2. 客户端的一般流程
+   1. 调用connect与服务端连接
+
+** 常用的函数
+1. socket(family=-1, type=-1, proto=-1, fileno=None)，在终端可以通过man socket查看相关的信息
+   1. family
+      1. AF_INET(Address Family - Internet): 这是最常见的套接字家族，用于IPv4网络通信。
+      2. AF_INET6: IPv6网络通信
+      3. AF_UNIX(Address Family - Unix): 用于在同一台机器上的进程间通信(IPC)。它使用文件系统中的路径名作为地址。
+      4. AF_BLUETOOTH(Address Family - Bluetooth): 用于蓝牙设备之间的通信。
+      5. AF_NETLINK(Address Family - Netlink): 在内核与用户空间进程之间提供通信的机制。
+      6. AF_PACKET(Address Family - Packet): 用于直接与网络设备通信，无需经过网络协议栈的处理。
+   2. type
+      1. SOCK_STREAM: 提供了一个可靠、流式的连接，通常用于 TCP(传输控制协议)连接。
+      2. SOCK_DGRAM: 提供了一个无连接、数据报式的连接，通常用于 UDP(用户数据报协议)连接。
+      3. SOCK_RAW: 允许用户直接访问底层协议，用于创建自定义协议或实现低级网络编程。
+      4. SOCK_RDM: 提供了一个可靠的数据报服务，但是不常用。
+      5. SOCK_SEQPACKET: 提供了一个可靠、顺序的连接，同时保持了数据报的记录边界。
+   3. proto
+      1. PPROTO_TCP: 指定使用 TCP(传输控制协议)。
+      2. IPPROTO_UDP: 指定使用 UDP(用户数据报协议)。
+      3. IPPROTO_ICMP: 指定使用 ICMP(Internet 控制消息协议)。
+      4. IPPROTO_RAW: 指定使用原始套接字，允许用户直接访问 IP 层。
+   4. fileno: 指向一个现有的套接字的文件描述符。新返回的套接字和fileno原先指向的套接字是被共享的。
+2. setsockopt(level, option, value): 设置套接字选项
+   1. level: 设置选项的协议级别
+      1. socket.SOL_SOCKET, 通用套接字选项
+      2. socket.IPPROTO_TCP, TCP协议选项
+   2. optname: 选项名称
+      1. SO_REUSEADDR: 允许在套接字关闭后立即重新使用该套接字的地址和端口
+      2. SO_RCVBUF 和 SO_SNDBUF: 套接字接收和发送缓冲区的大小
+      3. TCP_NODELAY: 禁用Nagle算法，以减少小包数据的延迟。
+      4. O_KEEPALIVE：启用或禁用套接字的保活选项。当套接字在一段时间内没有数据传输时，系统将自动发送保活消息以检查连接的状态。
+      5. SO_LINGER: 控制套接字关闭时的行为，特别是当还有未发送的数据时
+   3. value: 为选项指定值。通常是一个整数或者一个包含了特定值的字节对象
+3. getsockopt(level, option[,buffsize]):
+4. bind(address=()): 用于绑定地址与端口。
+   1. 0.0.0.0 表示其它可以接收其它机器上的连接。
+   2. 127.0.0.1 表示只接收来自本机的连接。
+   3. 特定ip(192.168.0.1) 表示只接收来自定块网卡的连接。多网卡的服务器特别有用。
+   4. '::' IPv6, 等同于 IPv4的 0.0.0.0
+   5. '::1' IPv6的本机
+5. listen(backlog=Number): 使得服务器可以开始接收连接。backlog表示套接字可等待接受连接的最大数量。如果等待队列已满，又有新连接请求到来会直接返回拒绝。
+6. accept(): 从等待队列中取出一个请求，并为该连接创建新的套接字。其返回值是conn, addr，分别表示一个socket与客户端的地址
+7. connect((host, port)): 向服务器发起连接的请求
+8. send(data[,flags]): 向另一端发送数据。send返回成功，并不是说对端已经收到消息了。
+9. recv(buffSize[,flags]): 读取指定字节数的数据
+10. close(): 关闭连接。也就是发送FIN置1的消息。
+** 使用setsockopt的例子
+#+begin_src python :results output
+  import socket
+  import struct
+
+  sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+  sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+  sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+  sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+
+  sock.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, 8192)
+  sock.setsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF, 8192)
+  linger_struct = struct.pack('ii', 1, 0)  # 使套接字关闭时立即返回，丢弃所有未发送的数据
+  sock.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, linger_struct)
+
+  print(sock.getsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR))
+  print(sock.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF))
+  print(sock.getsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF))
+#+end_src
+
+#+RESULTS:
+: 1
+: 16384
+: 16384
+
+* 基于Epoll的IO多路复用
+#+NAME: Server2.py
+#+begin_src python
+  # -*- coding: utf-8 -*-
+
+  import time
+  import socket
+  import select
+  import os
+
+  from base import Base
+
+
+  class Server(Base):
+
+      MAX_CONN = 1024
+      MAX_DATA_SIZE = 4096
+
+      def __init__(self):
+          super().__init__()
+          self.connections = {}
+          self.create_server()
+          self.create_epoll()
+
+      def create_server(self):
+          self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+          self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+          self.server.bind((self.host, self.port))
+          self.server.listen(self.MAX_CONN)
+          self.server.setblocking(False)
+          self.server.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+
+      def create_epoll(self):
+          self.epoll = select.epoll()
+          self.epoll.register(self.server.fileno(), select.EPOLLIN | select.EPOLLET)
+
+      def run(self):
+          try:
+              self.start()
+          except Exception as ex:
+              self.epoll.unregister(self.server.fileno())
+              self.epoll.close()
+              self.server.close()
+              raise ex
+
+      def __new_connection(self):
+          while True:
+              try:
+                  conn, addr = self.server.accept()
+                  conn.setblocking(False)
+                  self.epoll.register(conn.fileno(), select.EPOLLIN | select.EPOLLET)
+                  # 将文件描述符与客户端关联起来
+                  self.connections.update({conn.fileno(): [conn, addr]})
+              except BlockingIOError:
+                  return
+
+      def start(self):
+          while True:
+              time.sleep(1)
+              # 1. 从操作系统中得到就绪的文件描述符
+              events = self.epoll.poll(1)
+              for fileno, event in events:
+                  # 2. 如果就绪的文件描述符是 self.server 说明是有新的连接到来了
+                  #    需要为客户端
+                  if fileno == self.server.fileno():
+                      self.__new_connection()
+                      print(f"New Connection: {self.connections}")
+
+                  elif event & select.EPOLLIN:
+                      # 3. 如果文件描述符是可读的，就从中读取数据
+                      self.deal_with_input(fileno)
+
+                  elif event & select.EPOLLOUT:
+                      # 4. 如果文件描述符是可写的，就往其中写数据
+                      self.deal_with_output(fileno)
+
+                  elif event & select.EPOLLHUP:
+                      # 5. 如果文件描述符是挂起的
+                      self.epoll.unregister(fileno)
+                      self.connections[fileno][0].close()
+                      del self.connections[fileno]
+
+      def deal_with_input(self, fileno):
+          # 用于处理读取到的数据。有可能数据字节数是超过 MAX_DATA_SIZE 的
+          buf = bytearray()
+          while True:
+              try:
+                  data = self.connections[fileno][0].recv(self.MAX_DATA_SIZE)
+                  print(f"收到数据: {data}")
+                  if not data:
+                      self.close(fileno)
+                      return
+                  buf.extend(data)
+              except BlockingIOError:
+                  print(f"从客户端读数据完成: {fileno}")
+                  # 数据已读完.等同于c中的 EAGAIN || EWOULDBLOCK
+                  break
+          self.epoll.modify(fileno, select.EPOLLOUT | select.EPOLLET)
+
+      def deal_with_output(self, fileno):
+          while True:
+              try:
+                  self.connections[fileno][0].send(b"Hello Python!!!\n")
+                  self.epoll.modify(fileno, select.EPOLLIN | select.EPOLLET)
+                  break
+              except BlockingIOError:
+                  print(f"暂不可写，或许是写缓冲区已满: {fileno}")
+                  continue
+              except BrokenPipeError:
+                  print(f"客户端主动关闭: {fileno}")
+                  self.close(fileno)
+                  break
+              except ConnectionResetError:
+                  self.close(fileno)
+                  break
+
+      def close(self, fileno):
+          self.epoll.unregister(fileno)
+          self.connections[fileno][0].close()
+          del self.connections[fileno]
+
+
+  if __name__ == "__main__":
+      server = Server().run()
+#+end_src
+** event
+1. EPOLLIN: 文件描述符上有数据可读。通常用于检测套接字上是否有新的数据到来
+2. EPOLLOUT: 文件描述符上可以写入数据而不会阻塞
+3. EPOLLPRI: 文件描述符上有紧急数据可读
+4. EPOLLERR: 文件描述符发生了错误。通常在调用epoll_wait或epoll.poll时，如果检测到错误，这个事件将被触发。
+5. EPOLLHUP: 文件描述符挂起了。通常表示套接字已经关闭，或者另一端关闭了连接
+6. EPOLLONESHOT: 表示一旦该事件被触发，关联的文件描述符将自动从epoll的集合中移除，直到你再次调用epoll_ctl将它添加回去。
+7. EPOLLRDHUP: 当套接字的另一端关闭写入操作时，EPOLLRDHUP事件会被触发。
+* 使用Python内置的库实现IO多路复用
+#+begin_src python
+  import socket
+  import selectors
+
+  from base import Base
+
+
+  class Server(Base):
+
+      def __init__(self):
+          super().__init__()
+          self.selector = selectors.DefaultSelector()
+
+      def accept(self, sock, mask):
+          conn, addr = sock.accept()
+          print(f'Connected by {addr}')
+          conn.setblocking(False)
+          self.selector.register(conn, selectors.EVENT_READ, self.read)
+
+      def read(self, conn, mask):
+          data = conn.recv(1000)
+          if data:
+              print(f'Received data: {data.decode()}')
+              conn.send(data)
+          else:
+              print('Closing connection')
+              self.selector.unregister(conn)
+              conn.close()
+
+      def run(self):
+          # 创建服务器套接字
+          server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+          server_sock.bind((self.host, self.port))
+          server_sock.listen(100)
+          server_sock.setblocking(False)
+
+          # 注册服务器套接字到选择器
+          self.selector.register(server_sock, selectors.EVENT_READ, self.accept)
+
+          try:
+              while True:
+                  events = self.selector.select()
+                  for key, mask in events:
+                      callback = key.data
+                      callback(key.fileobj, mask)
+          except KeyboardInterrupt:
+              pass
+          finally:
+              self.selector.close()
+              server_sock.close()
+
+
+  if __name__ == '__main__':
+      Server().run()
+#+end_src
+* 基于协程的高并发
+#+NAME: server.py
+#+begin_src python :results output
+  import asyncio
+  from connect import Connect
+
+  class Server:
+
+      def __init__(self, host, port):
+          self.host = host
+          self.port = port
+          self.connects = []
+
+      async def handle_connect(self, reader, writer):
+          connect = Connect(reader, writer)
+          self.connects.append(connect)
+          try:
+              while True:
+                  await connect.read()
+          except Exception as ex:
+              raise ex
+          finally:
+              self.connects.remove(connect)
+              await connect.close()
+
+      async def run(self):
+          server = await asyncio.start_server(
+              self.handle_connect, self.host, self.port)
+
+          async with server:
+              await server.serve_forever()
+
+      async def monitor(self):
+          while True:
+              await asyncio.sleep(1)
+              print(f"当前连接数: {len(self.connects)}")
+
+
+  async def main():
+      server = Server("127.0.0.1", 3355)
+      await asyncio.gather(
+          server.run(),
+          server.monitor()
+      )
+
+
+  if __name__ == '__main__':
+      asyncio.run(main())
+#+end_src
+
+#+NAME: connect.py
+#+begin_src python :results output
+  class Connect:
+
+      def __init__(self, reader, writer):
+          self.reader = reader
+          self.writer = writer
+          self.sendBuffer = bytearray()
+
+      async def read(self):
+          while True:
+              readBuffer = bytearray()
+              data = await self.reader.read(4096)
+              print(f"Get Client Data: {data} {len(data)}")
+              if not data:
+                  break
+              readBuffer.extend(data)
+              await self.write(readBuffer)
+
+      async def write(self, data):
+          writeBuffer = bytearray()
+          writeBuffer.extend(data)
+          self.writer.write(writeBuffer)
+          print(f"Send to Client: {writeBuffer}")
+          await self.writer.drain()
+
+      async def close(self):
+          self.writer.close()
+          await self.writer.wait_closed()
+
+#+end_src
