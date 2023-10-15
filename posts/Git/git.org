@@ -30,3 +30,28 @@
 3. git remote -v: 这时就能看到A了
 4. git merge upstream/A: 合并A到B
 5. git push origin B: 把B推到仓库
+
+* 删除大文件,包括在历史记录上抹去
+
+** filter-branch
+1. 列出大文件
+#+begin_src shell
+  git rev-list --all | xargs -rL1 git ls-tree -r --long  | sort -uk3 | sort -rnk4 | head -10
+#+end_src
+2. 删除，替换要删除的文件名
+#+begin_src shell
+  git filter-branch --force --index-filter 'git rm --cached --ignore-unmatch path/to/delete/filename' --prune-empty --tag-name-filter cat -- --all
+#+end_src
+3. 提交到远端
+#+begin_src shell
+  git push origin --force --all
+#+end_src
+** git-filter-repo
+1. 安装工具包
+#+begin_src shell
+  pip install git-filter-repo
+#+end_src
+2. 执行删除
+#+begin_src shell
+  git filter-repo --path path/to/big-file --invert-paths
+#+end_src
