@@ -10,11 +10,9 @@
 
 * 使用http的方式的时候保存用户名与密码
 
-#+begin_verse
 运行以下命令之后,git会保存你输入的username和password。
 下一次再push/pull等需要账户密码的命令时会让你输入密码，再之后就不再需要输入密码了
 会在 *~/.git-credentials* 以明文的方式保存你的账号密码。所以请确保此服务器上的用户只有你一个人在使用
-#+end_verse
 
 #+begin_src shell
   git config --global credential.helper store
@@ -34,24 +32,21 @@
 * 删除大文件,包括在历史记录上抹去
 
 ** filter-branch
-1. 列出大文件
 #+begin_src shell
+  # 列出大文件
   git rev-list --all | xargs -rL1 git ls-tree -r --long  | sort -uk3 | sort -rnk4 | head -10
-#+end_src
-2. 删除，替换要删除的文件名
-#+begin_src shell
+
+  # 删除，替换要删除的文件名
   git filter-branch --force --index-filter 'git rm --cached --ignore-unmatch path/to/delete/filename' --prune-empty --tag-name-filter cat -- --all
-#+end_src
-3. 提交到远端
-#+begin_src shell
+
+  # 提交到远端
   git push origin --force --all
 #+end_src
 ** git-filter-repo
-1. 安装工具包
 #+begin_src shell
+  #安装工具包
   pip install git-filter-repo
-#+end_src
-2. 执行删除
-#+begin_src shell
+
+  # 执行删除
   git filter-repo --path path/to/big-file --invert-paths
 #+end_src
