@@ -1,0 +1,160 @@
+#+TITLE: 内存池的实现
+#+DATE: 2023-10-18 00:29:39
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: 内存池
+#+CATEGORIES: C
+
+* 固定大小的内存池
+#+begin_src C :results output
+  #include <stdio.h>
+  #include <stdlib.h>
+
+
+  // 每次分配4k大小的内存
+  #define MEM_PAGE_SIZE		0x1000
+
+
+  typedef struct mempool_s {
+      // 一块内存的大小
+      int block_size;
+      // 还有多少块内存是空闲的
+      int free_count;
+
+      // 下一块可分配的内存首地址
+      char *free_ptr;
+      // 内存的首地址(malloc的返回值)
+      char *mem;
+  } mempool_t;
+
+
+  int pool_init(mempool_t *m, int block_size) {
+
+      if (!m) return -2;
+
+      m->block_size = block_size;
+      m->free_count = MEM_PAGE_SIZE / block_size;
+
+      m->free_ptr = (char *)malloc(MEM_PAGE_SIZE);
+      if (!m->free_ptr) return -1;
+      m->mem = m->free_ptr;
+
+      int i = 0;
+      char *ptr = m->free_ptr;
+      for (i = 0;i < m->free_count;i ++) {
+
+          /**
+
+             char *ptr = m->free_ptr;
+             +---------------------------+     +-----------------------+
+             | ptr | value(free_ptr)    -|---> | free_ptr | char       |
+             +---------------------------+     +-----------------------+
+
+             ptr 是一个变量，指向的是栈中的一个地址。
+             它的值是一个地址。它的值所指向的地址的值 是一个char类型的变量
+
+
+                                              ,*(char **)ptr = ptr + block_size 这里其实是在给x赋值
+                                                   |
+                                                   v
+             +---------------------+             +--------------------+
+             | ptr | ptr-value    -+-----------> | x | x-value        |
+             +---------------------+             +--------------------+
+             (char **)ptr 将ptr强转成二级指针，它的值所指向的地址的值(x-value)就成为了一个地址
+             ,*(char **)ptr 是对ptr解引用，也就是得到了 ptr的value 所指向的地址了。它可以当做左值来使用。
+
+           ,*/
+          ,*(char **)ptr = ptr + block_size;
+          ptr += block_size;
+
+      }
+      ,*(char **)ptr = NULL;
+
+      return 0;
+  }
+
+
+  void *pool_alloc(mempool_t *m) {
+
+      if (!m || m->free_count == 0) return NULL;
+
+      /**
+         将free_ptr作为新分配的地址，最后要将其返回
+       ,*/
+      void *ptr = m->free_ptr;
+
+      /**
+         free_ptr向后移动一个位置，下一次分配使用
+       ,*/
+      m->free_ptr = *(char **)ptr;
+      /**
+         可用块减一
+       ,*/
+      m->free_count --;
+
+      return ptr;
+  }
+
+  void *pool_free(mempool_t *m, void *ptr) {
+
+      /**
+                 m
+                 |
+                 v
+         ptr -> free_ptr -> next -> next
+       ,*/
+      ,*(char**)ptr = m->free_ptr;
+
+      /**
+         m -> ptr -> free_ptr -> next -> next
+
+         将释放的那一块放到free_ptr，下一次分配时它会被分配
+       ,*/
+      m->free_ptr = (char *)ptr;
+      m->free_count ++;
+
+  }
+
+
+  int main() {
+
+      mempool_t m;
+
+      pool_init(&m, 32);
+
+      void *p1 = pool_alloc(&m);
+      printf("pool_alloc p1: %p\n", p1);
+
+      p1[0] = 'c';
+
+      void *p2 = pool_alloc(&m);
+      printf("pool_alloc p2: %p\n", p2);
+
+      void *p3 = pool_alloc(&m);
+      printf("pool_alloc p3: %p\n", p3);
+
+      void *p4 = pool_alloc(&m);
+      printf("pool_alloc p4: %p\n", p4);
+
+      pool_free(&m, p1);
+      pool_free(&m, p3);
+
+      void *p5 = pool_alloc(&m);
+      printf("pool_alloc p5 : %p\n", p5);
+
+      void *p6 = pool_alloc(&m);
+      printf("pool_alloc p6 : %p\n", p6);
+
+  }
+
+#+end_src
+
+#+RESULTS:
+: pool_alloc p1: 0x5577969102a0
+: pool_alloc p2: 0x5577969102c0
+: pool_alloc p3: 0x5577969102e0
+: pool_alloc p4: 0x557796910300
+: pool_alloc p5 : 0x5577969102e0
+: pool_alloc p6 : 0x5577969102a0

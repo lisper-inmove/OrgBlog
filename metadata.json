@@ -66,6 +66,39 @@
         "sort": 9999
     },
     {
+        "path": "posts/C/MemoryPool.org",
+        "id": "cG9zdHMvQy9NZW1vcnlQb29sLm9yZw",
+        "title": "内存池的实现",
+        "categories": "C",
+        "date": "2023-10-18 00:29:39",
+        "keywords": "内存池",
+        "difficulty": "",
+        "subtitle": "",
+        "sort": 9999
+    },
+    {
+        "path": "posts/C/Keywords.org",
+        "id": "cG9zdHMvQy9LZXl3b3Jkcy5vcmc",
+        "title": "C语言的关键字",
+        "categories": "C",
+        "date": "2023-10-17 22:53:57",
+        "keywords": "static",
+        "difficulty": "",
+        "subtitle": "",
+        "sort": 9999
+    },
+    {
+        "path": "posts/C/Pointer.org",
+        "id": "cG9zdHMvQy9Qb2ludGVyLm9yZw",
+        "title": "C语言的灵魂 - 指针",
+        "categories": "C",
+        "date": "2023-10-17 23:23:45",
+        "keywords": "指针",
+        "difficulty": "",
+        "subtitle": "",
+        "sort": 9999
+    },
+    {
         "path": "posts/CSS/css.org",
         "id": "cG9zdHMvQ1NTL2Nzcy5vcmc",
         "title": "CSS",
@@ -737,6 +770,17 @@
         "sort": 9999
     },
     {
+        "path": "posts/Linux/SystemCalls.org",
+        "id": "cG9zdHMvTGludXgvU3lzdGVtQ2FsbHMub3Jn",
+        "title": "系统调用大全",
+        "categories": "Linux C",
+        "date": "2023-10-17 21:31:37",
+        "keywords": "SystemCall",
+        "difficulty": "",
+        "subtitle": "",
+        "sort": 9999
+    },
+    {
         "path": "posts/Python/gRPC.org",
         "id": "cG9zdHMvUHl0aG9uL2dSUEMub3Jn",
         "title": "gRPC",
@@ -1311,7 +1355,7 @@
     {
         "path": "posts/NetworkProgramming/CSocket.org",
         "id": "cG9zdHMvTmV0d29ya1Byb2dyYW1taW5nL0NTb2NrZXQub3Jn",
-        "title": "C语言网络编程",
+        "title": "C套接字",
         "categories": "网络编程",
         "date": "2023-10-05 11:58:02",
         "keywords": "Socket Epoll",
@@ -1331,14 +1375,36 @@
         "sort": 9999
     },
     {
+        "path": "posts/NetworkProgramming/IOUring.org",
+        "id": "cG9zdHMvTmV0d29ya1Byb2dyYW1taW5nL0lPVXJpbmcub3Jn",
+        "title": "IOUring",
+        "categories": "网络编程",
+        "date": "2023-10-15 21:13:34",
+        "keywords": "io_uring",
+        "difficulty": "",
+        "subtitle": "",
+        "sort": 9999
+    },
+    {
         "path": "posts/NetworkProgramming/PythonSocket.org",
         "id": "cG9zdHMvTmV0d29ya1Byb2dyYW1taW5nL1B5dGhvblNvY2tldC5vcmc",
-        "title": "Python套接字编程",
+        "title": "Python套接字",
         "categories": "网络编程",
         "date": "2023-10-03 17:39:21",
         "keywords": "Epoll",
         "difficulty": "",
         "subtitle": "套接字C-S 高并发: Epoll,内置selectors,asyncio,协程",
+        "sort": 9999
+    },
+    {
+        "path": "posts/NetworkProgramming/SendmsgAndRecvmsg.org",
+        "id": "cG9zdHMvTmV0d29ya1Byb2dyYW1taW5nL1NlbmRtc2dBbmRSZWN2bXNnLm9yZw",
+        "title": "IPC - 进程间通信",
+        "categories": "网络编程",
+        "date": "2023-10-17 01:39:51",
+        "keywords": "sendmsg recvmsg",
+        "difficulty": "",
+        "subtitle": "",
         "sort": 9999
     }
 ]

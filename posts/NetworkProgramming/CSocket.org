@@ -1,4 +1,4 @@
-#+TITLE: C语言网络编程
+#+TITLE: C套接字
 #+DATE: 2023-10-05 11:58:02
 #+DISPLAY: t
 #+STARTUP: indent

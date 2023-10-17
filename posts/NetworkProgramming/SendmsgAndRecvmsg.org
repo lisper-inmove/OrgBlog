@@ -1,0 +1,283 @@
+#+TITLE: IPC - 进程间通信
+#+DATE: 2023-10-17 01:39:51
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: sendmsg recvmsg
+#+CATEGORIES: 网络编程
+
+* 使用Unix Socket 与 sendmsg & recvmsg
+** 主要使用场景
+
+文件描述符在进程间传递有以下常用场景:
+  1. *进程分离与权限下放* : 一个进程可能需要访问某些受限的资源，但出于安全考虑，我们不希望给它直接的权限。在这种情况下，一个具有足够权限的进程可以打开该资源并将文件描述符传递给另一个进程，从而允许后者在没有直接权限的情况下访问该资源。
+  2. *进程复用与连接池*: 在某些高性能的服务器应用中，主进程可能会预先创建一组工作进程。当新的连接到达时，主进程可以接受该连接并将其文件描述符传递给一个工作进程，从而避免了频繁地创建和销毁进程。
+     1. Nginx: Nginx是一个高性能的HTTP和反向代理服务器。在某些配置中，Nginx使用多进程模型来处理客户端请求。主进程接受新的连接，并将这些连接的文件描述符传递给工作进程，从而实现负载均衡。这种方法允许Nginx非常高效地处理大量并发连接。
+     2. HAProxy: HAProxy是一个流行的负载均衡器和代理服务器。它也可以使用多进程模型，并在进程之间传递文件描述符，以实现高效的连接处理。
+     3. PostgreSQL: 当客户端连接到PostgreSQL时，主进程(通常称为postmaster)接受连接并启动一个新的后端进程来处理该连接。在某些配置中，为了减少进程创建的开销，PostgreSQL可以预先创建一组后端进程，并通过传递文件描述符的方式将新连接分配给这些进程。
+     4. systemd: 虽然systemd不是一个传统意义上的“服务器应用”，但它是Linux系统的初始化系统和服务管理器。systemd有一个特性叫做“socket activation”，它允许systemd为服务预先创建套接字，并在服务启动时将这些套接字的文件描述符传递给服务进程。这种方法可以实现更快的启动时间和更高的并发处理能力。
+     5. Relayd: 这是一个用于负载均衡和高可用性的代理服务器，主要用于OpenBSD。它也使用了文件描述符传递技术来实现其功能。
+  3. *负载均衡*: 在一个复杂的系统中，可能有多个进程处理来自客户端的请求。一个前端进程可以接受所有的连接，然后根据某种策略（如轮询或负载信息）将连接的文件描述符传递给后端的工作进程。
+  4. *进程间的高效数据交换*: 两个进程可以通过传递文件描述符来共享一个套接字或管道，从而高效地交换数据，而无需复制数据。
+  5. *进程监控与恢复*: 一个监控进程可以持有其他进程打开的关键资源的文件描述符。如果工作进程崩溃，监控进程可以使用这些文件描述符来恢复工作，或者将它们传递给一个新的工作进程。
+  6. *文件锁的继承*: 当一个进程持有一个文件的锁并希望另一个进程继续持有该锁时，它可以简单地传递该文件的描述符。
+
+** 一个例子
+
+该代码主要分为两部分。sendmsg.c与recvmsg.c。
+sendmsg.c中，打开一个文件，然后将其文件描述符发送给recvmsg.c。
+recvmsg.c中进行一个write操作，向该文件中写入一段字符。
+
+*** 发送方
+#+NAME: sendmsg.c
+#+begin_src c
+  #include <stdio.h>
+  #include <sys/socket.h>
+  #include <sys/un.h>
+  #include <stdlib.h>
+  #include <string.h>
+  #include <unistd.h>
+  #include <fcntl.h>
+
+  int main() {
+      int fd0 = open("test.txt", O_RDWR | O_CREAT);
+      struct sockaddr_un addr;
+      int sfd, cfd;
+      char buf[10];
+      struct iovec iov[1];
+      /**
+         struct msghdr {
+             void *msg_name;              // 可选的地址
+             socklen_t msg_namelen;       // 地址大小
+             struct iovec *msg_iov;       // 数据块
+             size_t msg_iovlen;           // 元素在msg_iov中的数量
+             void *msg_control;           // 辅助数据
+             size_t msg_controllen;       // 辅助数据长度
+             int msg_flags;               // 接收到的消息标志
+         }
+       ,*/
+      struct msghdr msg;
+      /**
+         struct cmsghdr {
+             size_t cmsg_len;            // 数据长度,包括头部
+             int cmsg_level;             // 发起控制消息的协议
+             int cmsg_type;              // 协议特定的类型
+             unsigned char cmsg_data[];  // 表示控制消息的数据开始的地方。使用CMSG_DATA来获取这个指针
+         }
+
+         cmsg_level: 这个字段通常指定了哪个协议层应该解释控制消息
+             SOL_SOCKET: 通用套接字层，用于处理与特定协议无关的控制消息
+         cmsg_type: 这个字段的值取决于cmsg_level。它指定了控制消息的具体类型
+         对于SOL_SOCKET层常见的有
+             1. SCM_RIGHTS: 用于传递文件描述符
+             2. SCM_CREDENTIALS: 用于传递进程凭据(PID, UID, GID)
+             3. SCM_TIMESTAMP: 用于获取套接字接收数据的时间戳
+
+       ,*/
+      struct cmsghdr *cmsg;
+      /**
+         确保控制消息的大小是size_t的整数倍，这样可以确保结构体的对齐。
+         #define CMSG_SPACE(len) (sizeof(struct cmsghdr) + ((len) + sizeof(size_t) - 1) & ~(sizeof(size_t) - 1))
+       ,*/
+      char cmsgbuf[CMSG_SPACE(sizeof(fd0))];
+
+      // 创建UNIX域套接字
+      sfd = socket(AF_UNIX, SOCK_STREAM, 0);
+      if (sfd == -1) {
+          perror("socket");
+          exit(1);
+      }
+
+      // 设置套接字地址
+      memset(&addr, 0, sizeof(struct sockaddr_un));
+      addr.sun_family = AF_UNIX;
+      strncpy(addr.sun_path, "/tmp/fd-passing.sock", sizeof(addr.sun_path) - 1);
+
+      // 绑定套接字到地址
+      if (bind(sfd, (struct sockaddr *) &addr, sizeof(struct sockaddr_un)) == -1) {
+          perror("bind");
+          exit(1);
+      }
+
+      // 开始监听
+      if (listen(sfd, 5) == -1) {
+          perror("listen");
+          exit(1);
+      }
+
+      // 接受连接
+      cfd = accept(sfd, NULL, NULL);
+      if (cfd == -1) {
+          perror("accept");
+          exit(1);
+      }
+
+      memset(buf, 'A', 10);
+      // 设置消息结构体
+      iov[0].iov_base = buf;
+      iov[0].iov_len = sizeof(buf);
+
+      memset(&msg, 0, sizeof(struct msghdr));
+      msg.msg_iov = iov;
+      msg.msg_iovlen = 1;
+      msg.msg_control = cmsgbuf;
+      msg.msg_controllen = sizeof(cmsgbuf);
+
+      /**
+         设置控制消息，用于传递文件描述符
+         #define CMSG_FIRSTHDR(mhdr) \
+             ((mhdr)->msg_controllen >= sizeof(struct cmsghdr) ? \
+               (struct cmsghdr *)(mhdr)->msg_contrtol : \
+               (struct cmsghdr *)NULL)
+       ,*/
+      cmsg = CMSG_FIRSTHDR(&msg);
+      cmsg->cmsg_level = SOL_SOCKET;
+      cmsg->cmsg_type = SCM_RIGHTS;
+      /**
+         CMSG_LEN根据不同的系统有可能有不同的定义
+         #define CMSG_LEN(len) (sizeof(struct cmsghdr) + (len))
+       ,*/
+      cmsg->cmsg_len = CMSG_LEN(sizeof(fd0));
+      /**
+         实际上就是 cmsg_data字段
+         #define CMSG_DATA(cmsg) ((unsigned char *)(cmsg) + sizeof(struct cmsghdr))
+       ,*/
+      ,*((int *) CMSG_DATA(cmsg)) = fd0;
+
+      // 发送消息
+      if (sendmsg(cfd, &msg, 0) == -1) {
+          perror("sendmsg");
+          exit(1);
+      }
+
+      // 关闭套接字
+      close(cfd);
+      close(sfd);
+
+      return 0;
+  }
+
+#+end_src
+*** 接收方
+#+NAME: recvmsg.c
+#+begin_src c
+  #include <stdio.h>
+  #include <sys/socket.h>
+  #include <sys/un.h>
+  #include <stdlib.h>
+  #include <string.h>
+  #include <unistd.h>
+  #include <string.h>
+  #include <errno.h>
+
+  int main() {
+      struct sockaddr_un addr;
+      int sfd;
+      char buf[10];
+      struct iovec iov[1];
+      struct msghdr msg;
+      struct cmsghdr *cmsg;
+      int received_fd;
+      char cmsgbuf[CMSG_SPACE(sizeof(received_fd))];
+
+      // 创建UNIX域套接字
+      sfd = socket(AF_UNIX, SOCK_STREAM, 0);
+      if (sfd == -1) {
+          perror("socket");
+          exit(1);
+      }
+
+      // 设置套接字地址
+      memset(&addr, 0, sizeof(struct sockaddr_un));
+      addr.sun_family = AF_UNIX;
+      strncpy(addr.sun_path, "/tmp/fd-passing.sock", sizeof(addr.sun_path) - 1);
+
+      // 连接到服务器
+      if (connect(sfd, (struct sockaddr *) &addr, sizeof(struct sockaddr_un)) == -1) {
+          perror("connect");
+          exit(1);
+      }
+
+      // 设置消息结构体
+      iov[0].iov_base = buf;
+      iov[0].iov_len = sizeof(buf);
+
+      memset(&msg, 0, sizeof(struct msghdr));
+      msg.msg_iov = iov;
+      msg.msg_iovlen = 1;
+      msg.msg_control = cmsgbuf;
+      msg.msg_controllen = sizeof(cmsgbuf);
+
+      // 接收消息
+      if (recvmsg(sfd, &msg, 0) == -1) {
+          perror("recvmsg");
+          exit(1);
+      }
+
+      // 获取控制消息中的文件描述符
+      cmsg = CMSG_FIRSTHDR(&msg);
+      if (cmsg == NULL || cmsg->cmsg_type != SCM_RIGHTS) {
+          fprintf(stderr, "No SCM_RIGHTS received\n");
+          exit(1);
+      }
+
+      /**
+         received_fd的值，与发送端发送的值没有关系，接收进程的下一个可用fd
+       ,*/
+      received_fd = *((int *) CMSG_DATA(cmsg));
+      printf("Received file descriptor: %d\n", received_fd);
+      printf("Received buf: %s\n", buf);
+
+      char *buffer = "Hello World!";
+      if (-1 == write(received_fd, buffer, strlen(buffer))) {
+          perror(strerror(errno));
+      }
+
+      // 关闭套接字
+      close(sfd);
+
+      return 0;
+  }
+
+#+end_src
+
+* socketpair
+
+该系统调用创建一对匿名的套接字 =int socketpair(int d, int type, int protocol, int sv[2]);=
+sv是长度为2的数组，该函数返回后，sv中的两个值都是具有读写能力的文件描述符。往sv[0]写，可以从sv[1]读出来，从sv[1]与可以从sv[0]读出来。
+这样可以很方便地在父子进程间进行通信。
+Nginx多进程模式就是通过 socketpair/sendmsg/recvmsg 来将父进程中的客户端的文件描述符传递给子进程的。
+
+#+NAME: socketpair.c
+#+begin_src c
+  #include <stdio.h>
+  #include <unistd.h>
+  #include <sys/types.h>
+  #include <sys/socket.h>
+
+  int main() {
+      int sv[2];
+      char buffer[128];
+
+      if (socketpair(AF_UNIX, SOCK_STREAM, 0, sv) == -1) {
+          perror("socketpair");
+          return 1;
+      }
+
+      if (fork() == 0) {  // Child process
+          close(sv[0]);
+          write(sv[1], "Hello from child!", 18);
+          close(sv[1]);
+          return 0;
+      } else {  // Parent process
+          close(sv[1]);
+          read(sv[0], buffer, sizeof(buffer));
+          printf("Received message: %s\n", buffer);
+          close(sv[0]);
+      }
+
+      return 0;
+  }
+
+#+end_src

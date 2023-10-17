@@ -1,4 +1,4 @@
-#+TITLE: Python套接字编程
+#+TITLE: Python套接字
 #+DATE: 2023-10-03 17:39:21
 #+DISPLAY: t
 #+STARTUP: indent

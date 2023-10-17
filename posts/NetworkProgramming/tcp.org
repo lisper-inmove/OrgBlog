@@ -67,6 +67,7 @@ https://datatracker.ietf.org/doc/html/rfc9293
 #+ATTR_HTML: :width 50% :align center :image t
 [[https://inmove-blog.oss-cn-hangzhou.aliyuncs.com/images/ThreeTimesShakeHand.png]]
 
+主要流程:
 1. S作为服务开放端口待客户端连接，此时为 *LISTEN* 状态
 2. 第一次握手: C作为客户端 发送  *SYN置1, seq(Sequence Number)=x* 发起连接，自身进入 *SYN_SENT* 状态
 3. 第二次握手: S收到C的消息之后，发送 *SYN置1, ACK置1, seq=y, Ack(Acknowledgment)=x+1* 自身进入 *SYN_RECV* 状态
@@ -92,6 +93,7 @@ https://datatracker.ietf.org/doc/html/rfc9293
 #+ATTR_HTML: :width 50% :align center :image t
 [[https://inmove-blog.oss-cn-hangzhou.aliyuncs.com/images/FourTimesWaveHand.png]]
 
+主要流程:
 1. 主动方，会在某一个包中将FIN置1，有可能是一个单独的包，也有可能和一个数据包一起发送。
 2. 被动方，会回ACK的消息，然后发起一个FIN的消息。他们有可能单独发，也有可能会一起发过去，比如被动方在准备好可以发FIN之后，发现这个ACK还没有发出去了，便会让他们一起发送。这样的话。发起方就会直接进行TIME_WAIT状态了。
    另外有一种情，被动方先发送了FIN，此时会进入 CLOSING 状态。

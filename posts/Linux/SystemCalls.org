@@ -1,0 +1,19 @@
+#+TITLE: 系统调用大全
+#+DATE: 2023-10-17 21:31:37
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: SystemCall
+#+CATEGORIES: Linux C
+
+* posix_memalign
+
+=int posix_memalign(void **memptr, size_t alignment, size_t size);=
+
+以下是 man posix_memalign 对于此函数的翻译。
+
+分配 *size* 大小的字节，由 /memptr/ 参数返回。
+分配的 地址值必须是 /alignment/ 参数的整数倍。
+同时也必须是 2的n次方，也必须是 sizeof(void *) 的整数倍。
+如果size为0，那么memptr中的值要么是NULL，要么是一个特殊的指针值。

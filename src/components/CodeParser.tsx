@@ -22,6 +22,9 @@ export default function CodeParser({line, language, filename}: Props) {
   if (language == 'picture') {
     showLineNumbers = false;
   }
+  if (language == 'C') {
+    language = 'c';
+  }
   return (
     <div className={styles.codeBody}>
       <CopyBtn codeText={line} filename={filename} language={language}>
