@@ -226,6 +226,8 @@ class OrgParser {
         style: item.style,
         indent: 0,
       });
+    } else if (item.type == "link") {
+      cur.items.push(this.parseLink(item));
     }
   }
 

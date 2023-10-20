@@ -40,7 +40,7 @@ export const Constants = {
   headerTagSize: '1.5rem',
 
   inlineCodeFontFamily: 'monospace',
-  inlineCodeTextColor: '#d63384',
+  inlineCodeTextColor: '#3ef3ff',
   inlineCodeBgColor: '#000000',
   inlineCodeFontSize: '1.2rem',
   inlineCodePadding: '2px',

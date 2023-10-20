@@ -1,0 +1,414 @@
+#+TITLE: 内存池的实现
+#+DATE: 2023-10-18 00:29:39
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: 内存池
+#+CATEGORIES: C
+
+* 固定大小的内存池
+#+begin_src c :results output
+  #include <stdio.h>
+  #include <stdlib.h>
+
+
+  // 每次分配4k大小的内存
+  #define MEM_PAGE_SIZE		0x1000
+
+
+  typedef struct mempool_s {
+      // 一块内存的大小
+      int block_size;
+      // 还有多少块内存是空闲的
+      int free_count;
+
+      // 下一块可分配的内存首地址
+      char *free_ptr;
+      // 内存的首地址(malloc的返回值)
+      char *mem;
+  } mempool_t;
+
+
+  int pool_init(mempool_t *m, int block_size) {
+
+      if (!m) return -2;
+
+      m->block_size = block_size;
+      m->free_count = MEM_PAGE_SIZE / block_size;
+
+      m->free_ptr = (char *)malloc(MEM_PAGE_SIZE);
+      if (!m->free_ptr) return -1;
+      m->mem = m->free_ptr;
+
+      int i = 0;
+      char *ptr = m->free_ptr;
+      for (i = 0;i < m->free_count;i ++) {
+
+          /**
+
+             char *ptr = m->free_ptr;
+             +---------------------------+     +-----------------------+
+             | ptr | value(free_ptr)    -|---> | free_ptr | char       |
+             +---------------------------+     +-----------------------+
+
+             ptr 是一个变量，指向的是栈中的一个地址。
+             它的值是一个地址。它的值所指向的地址的值 是一个char类型的变量
+
+
+                                              ,*(char **)ptr = ptr + block_size 这里其实是在给x赋值
+                                                   |
+                                                   v
+             +---------------------+             +--------------------+
+             | ptr | ptr-value    -+-----------> | x | x-value        |
+             +---------------------+             +--------------------+
+             (char **)ptr 将ptr强转成二级指针，它的值所指向的地址的值(x-value)就成为了一个地址
+             ,*(char **)ptr 是对ptr解引用，也就是得到了 ptr的value 所指向的地址了。它可以当做左值来使用。
+
+           ,*/
+          ,*(char **)ptr = ptr + block_size;
+          ptr += block_size;
+
+      }
+      ,*(char **)ptr = NULL;
+
+      return 0;
+  }
+
+
+  void *pool_alloc(mempool_t *m) {
+
+      if (!m || m->free_count == 0) return NULL;
+
+      /**
+         将free_ptr作为新分配的地址，最后要将其返回
+       ,*/
+      void *ptr = m->free_ptr;
+
+      /**
+         free_ptr向后移动一个位置，下一次分配使用
+       ,*/
+      m->free_ptr = *(char **)ptr;
+      /**
+         可用块减一
+       ,*/
+      m->free_count --;
+
+      return ptr;
+  }
+
+  void *pool_free(mempool_t *m, void *ptr) {
+
+      /**
+                 m
+                 |
+                 v
+         ptr -> free_ptr -> next -> next
+       ,*/
+      ,*(char**)ptr = m->free_ptr;
+
+      /**
+         m -> ptr -> free_ptr -> next -> next
+
+         将释放的那一块放到free_ptr，下一次分配时它会被分配
+       ,*/
+      m->free_ptr = (char *)ptr;
+      m->free_count ++;
+
+  }
+
+
+  int main() {
+
+      mempool_t m;
+
+      pool_init(&m, 32);
+
+      void *p1 = pool_alloc(&m);
+      printf("pool_alloc p1: %p\n", p1);
+
+      p1[0] = 'c';
+
+      void *p2 = pool_alloc(&m);
+      printf("pool_alloc p2: %p\n", p2);
+
+      void *p3 = pool_alloc(&m);
+      printf("pool_alloc p3: %p\n", p3);
+
+      void *p4 = pool_alloc(&m);
+      printf("pool_alloc p4: %p\n", p4);
+
+      pool_free(&m, p1);
+      pool_free(&m, p3);
+
+      void *p5 = pool_alloc(&m);
+      printf("pool_alloc p5 : %p\n", p5);
+
+      void *p6 = pool_alloc(&m);
+      printf("pool_alloc p6 : %p\n", p6);
+
+  }
+
+#+end_src
+
+* 动态大小的内存池
+
+#+ATTR_HTML: :width 50% :align center :image t
+[[https://inmove-blog.oss-cn-hangzhou.aliyuncs.com/images/MemoryPool.png]]
+
+#+begin_src c
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <string.h>
+  #include <errno.h>
+
+  /**
+     pool
+
+
+     small: 分配一个整块，可以多次使用
+
+     创建pool时，small的第一块是和pool连在一起的
+
+     create_pool函数中，分配的内存空间包括三部分
+     1. pool 的结构体的空间
+     2. 为 small_block_node_t 结构体分配的空间，pool的head指向它的起始地址
+     3. 存储数据的空间 head + sizeof(small_block_node_t) 指向它的起始地址
+
+     +--------------+
+     | pool         |
+     +--------------+             +-----------+
+     | head        -|--next-----> |          -|-----> NULL
+     +--------------+             +-----------+
+     | (last)data   |             |           |
+     |              |             |           |
+     |              |             |           |
+     +--------------+             +-----------+
+
+     large: 一次分配使用一次
+
+     +-------------+             +-----------+
+     | block      -|--next-----> | block    -|-----> NULL
+     +-------------+             +-----------+
+     | data        |             |           |
+     |             |             |           |
+     |             |             |           |
+     +-------------+             +-----------+
+
+   ,*/
+
+  #define P_ALIGNMENT 32
+  #define P_PAGE 4096
+  #define P_MAX_ALLOC_FROM_POOL (P_PAGE - 1)
+
+  #define align(n, alignment) (((n) + (alignment - 1)) & ~(alignment - 1))
+  #define align_ptr(p, alignment) (void *)((((size_t)p) + (alignment - 1)) & ~(alignment - 1))
+
+  typedef struct large_block_node_s large_block_node_t;
+  typedef struct small_block_node_s small_block_node_t;
+
+  typedef struct large_block_node_s {
+
+      large_block_node_t *next;
+      void *alloc;
+
+  } large_block_node_t;
+
+  typedef struct small_block_node_s {
+
+      unsigned char *last;
+      unsigned char *end;
+      small_block_node_t *next;
+      char failed;
+
+  } small_block_node_t;
+
+  typedef struct pool_s {
+
+      // 单页最大字节数
+      size_t max;
+
+      small_block_node_t *current;
+      large_block_node_t *large;
+
+      small_block_node_t head[0];
+
+  } pool_t;
+
+  pool_t *create_pool(size_t size);
+  void *palloc(pool_t *pool, size_t size);
+  void destory_pool(pool_t *pool);
+  static void *alloc_small(pool_t *p);
+  static void *alloc_large(pool_t *p, size_t size);
+
+
+
+  pool_t *create_pool(size_t size) {
+      pool_t *p;
+      /**
+         分配一块内存空间，将它保存在 p中
+         返回的地址将是P_ALIGNMENT的整数倍
+
+         这里也同时为第一个small_block分配了空间
+
+       ,*/
+      int ret = posix_memalign((void **)&p, P_ALIGNMENT, size + sizeof(pool_t) + sizeof(small_block_node_t));
+      if (ret) {
+          perror(strerror(errno));
+          return NULL;
+      }
+
+      // 分配空间时，最大能分配的字节数
+      p->max = (size < P_MAX_ALLOC_FROM_POOL) ? size : P_MAX_ALLOC_FROM_POOL;
+
+      /**
+         p->head, p->head->end 的地址是不会变的，所以 p->head->end - p->head 就是参数中的size大小
+         后面请求新的small_block_node时也是这样计算size的大小的
+       ,*/
+      p->current = p->head;
+
+      p->large = NULL;
+
+      /**
+         last指向下一次申请地址时，返回的地址
+       ,*/
+      p->head->last = (unsigned char *)p + sizeof(pool_t) + sizeof(small_block_node_t);
+      p->head->end = p->head->last + size;
+
+      return p;
+  }
+
+  void destory_pool(pool_t *pool) {
+      // 释放大块空间
+      large_block_node_t *l;
+      for (l = pool->large; l; l = l->next) {
+          if (l->alloc) free(l->alloc);
+      }
+
+      // 释放小块空间
+      small_block_node_t *h = pool->head->next;
+      small_block_node_t *n;
+      while (h) {
+          n = h->next;
+          free(h);
+          h = n;
+      }
+
+      // 释放pool
+      free(pool);
+  }
+
+  void free_large(pool_t *pool, void *p) {
+      /**
+         将某一块large释放
+       ,*/
+      large_block_node_t *l;
+      for (l = pool->large; l; l = l->next) {
+          if (p == l->alloc) {
+              free(l->alloc);
+              l->alloc = NULL;
+              return ;
+          }
+      }
+  }
+
+  static void *alloc_small(pool_t *pool) {
+      char *m;
+      size_t size = (size_t)(pool->head->end - (unsigned char *)pool->head);
+      int ret = posix_memalign((void **)&m, P_ALIGNMENT, size);
+      if (ret) {
+          perror(strerror(errno));
+          return NULL;
+      }
+
+      small_block_node_t *new = (small_block_node_t *)m;
+      new->end = m + size + sizeof(small_block_node_t);
+      new->next = NULL;
+      new->last = m + sizeof(small_block_node_t);
+      new->failed = 0;
+
+      small_block_node_t *current = pool->current;
+      small_block_node_t *p = pool->current;
+      for (p; p->next; p = p->next) {
+          if (p->failed++ > 4) {
+              current = p->next;
+          }
+      }
+      p->next = new;
+      pool->current = current ? current : new;
+      return m;
+  }
+
+  static void *alloc_large(pool_t *pool, size_t size) {
+
+      void *p = malloc(size);
+      if (p == NULL) return NULL;
+
+      /**
+         寻找一个已经释放的大块来使用
+       ,*/
+      int n = 0;
+      large_block_node_t *large = NULL;
+      for (large = pool->large; large; large = large->next) {
+          if (large->alloc == NULL) {
+              large->alloc = p;
+              return p;
+          }
+          if (n++ > 3) break;
+      }
+
+      /**
+         去小块那里为 large_block_node_t 结构体分配一块空间
+       ,*/
+      large = palloc(pool, sizeof(large_block_node_t));
+      if (large == NULL) {
+          free(p);
+          return NULL;
+      }
+
+      /**
+         将新的large插入到最头部位置
+       ,*/
+      large->alloc = p;
+      large->next = pool->large;
+      pool->large = large;
+
+      return p;
+  }
+
+  void *palloc(pool_t *pool, size_t size) {
+      unsigned char *m;
+      if (size <= pool->max) {
+          small_block_node_t *current = pool->current;
+          while (current) {
+              if ((size_t)(current->end - current->last) >= size) {
+                  m = current->last;
+                  current->last += size;
+                  return m;
+              }
+              current = current->next;
+          }
+          return alloc_small(pool);
+      }
+      return alloc_large(pool, size);
+  }
+
+
+  int main() {
+      pool_t *pool = create_pool(1 << 12);
+      printf("创建新的内存池: %p\n", pool);
+      printf("第一个small块的地址: %p\n", pool->head);
+      printf("第一次分配small块的地址: %p, %p\n", pool->head->last, pool->current->last);
+
+      char *node1 = (char *)palloc(pool, 32);
+      printf("创建新的node: %p\n", node1);
+
+      char *node2 = (char *)palloc(pool, 32);
+      printf("创建新的node: %p\n", node2);
+
+      char *large01 = (char *)palloc(pool, P_PAGE);
+      printf("创建一个新的large块: %p, %p\n", large01, pool->large);
+      return 0;
+  }
+
+#+end_src

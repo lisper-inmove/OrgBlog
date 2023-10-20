@@ -1,0 +1,33 @@
+#+TITLE: Openresty
+#+DATE: 2023-10-20 14:10:21
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: openresty
+#+CATEGORIES: API网关
+
+* Openresty 的处理阶段
+
+#+ATTR_HTML: :width 50% :align center :image t
+[[https://inmove-blog.oss-cn-hangzhou.aliyuncs.com/images/openresty-phases.png]]
+
+1. init_by_lua init_by_lua_file: 在master进程加载配置时执行。通常用于初始化全局或预加载Lua模块
+2. init_worker_by_lua _file: Worker进程启动时被调用
+3. set_by_lua _file: 用于设置Nginx变量
+4. rewrite_by_lua _file: 转发/重定向逻辑
+5. access_by_lua _file: 请求访问阶段处理，用于访问控制，例如 IP 准入和接口权限判断
+6. content_by_lua _file: 内容处理器，接收请求处理并输出响应
+7. header_filter_by_lua _file: 设置响应的 header 和 cookie
+8. body_filter_by_lua _file: 对响应数据进行过滤，比如截断、替换
+9. log_by_lua _file: 记录日志，例如记录访问量和统计平均响应时间
+
+* Openresty中配置lua脚本
+
+假设我们要写一个访问redis的lua脚本
+
+1. 使用opm来安装redis库: =opm get anjia0532/lua-resty-redis-util=
+2. 在 nginx 的http块中配置lua脚本的位置: =lua_package_path "/opt/openresty/scripts/?.lua;/opt/openresty/scripts/?/init.lua;;";=
+   1. 前一种配置呢，只允许在scripts下的lua脚本有效
+   2. 后一种配置呢，允许scripts下的二级子目录中的init.lua有效
+3. 编写lua脚本以及配置Nginx: [[file:~/source-code/OrgBlog/posts/Openresty/RequestLimit.org::*request-limit.lua][request-limit.lua]]

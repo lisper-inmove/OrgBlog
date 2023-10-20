@@ -14,11 +14,18 @@ interface Props {
 function List({ordered, items}: Props) {
 
   const renderValue = (itemValue: ItemValue[]) => {
-    return itemValue.map((value, index) => {
-      let style = getTextStyle(value.style);
+    return itemValue.map((item, index) => {
+      let style = getTextStyle(item.style);
+      if (item.style == "link") {
+        let text = item.value.split("||")[0];
+        let href = item.value.split("||")[1];
+        return (<a key={index} href={href} style={{
+            color: "red",
+          }}>{text}</a>);
+      }
       return (
         <span key={index} style={style}>
-          {value.value}
+          {item.value}
           {index < itemValue.length - 1 && ' '}
         </span>
       );

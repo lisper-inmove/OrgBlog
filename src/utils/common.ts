@@ -30,7 +30,7 @@ export function getTextStyle(styleName: string) {
       style = { 
         fontFamily: Constants.inlineCodeFontFamily,
         color: Constants.inlineCodeTextColor,
-        backgroundColor: Constants.inlineCodeBgColor,
+        // backgroundColor: Constants.inlineCodeBgColor,
         fontSize: Constants.inlineCodeFontSize,
         padding: Constants.inlineCodePadding,
         borderRadius: Constants.inlineCodeBgColor,

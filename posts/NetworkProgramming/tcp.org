@@ -115,7 +115,7 @@ https://datatracker.ietf.org/doc/html/rfc9293
 当服务端收到客户端发起的SYN请求后，内核会把该连接存储到半连接队列，并向客户端响应SYN+ACK，接着客户返回ACK，服务端收到第三次握手的ACK后，内核会把连接从半连接队列移除，然后创建新的完全的连接，并将其添加到全连接队列。
 我们编写的socket.accept就是从accept队列中获取一个socket。
 
-洪水攻击，伪造大量的ip，不断的发起SYN，因为是假的ip，所以不可能收到客户端的ACK，半连接队列就一直处于满的状态。解决办法 [[file:~/source-code/blog-v2/posts/Linux/KernelOptomize.org::*For Web][net.ipv4.tcp_syncookies = 1]]
+洪水攻击，伪造大量的ip，不断的发起SYN，因为是假的ip，所以不可能收到客户端的ACK，半连接队列就一直处于满的状态。解决办法 [[file:~/source-code/OrgBlog/posts/Linux/KernelOptomize.org::*For Web][net.ipv4.tcp_syncookies = 1]]
 
 * RTT E-RTT 与 RTO
 
