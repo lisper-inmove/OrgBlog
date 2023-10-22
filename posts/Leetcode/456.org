@@ -12,6 +12,10 @@
 
 https://leetcode.cn/problems/132-pattern/description/
 
+把数组从后往前遍历，假设当前数字为x。把栈有所有比x小的数弹出，最后一个弹出的数假设为y，那么y一定是x之后比x小的最大的数。
+因为当y入栈的时候把所有比y小的数都数都弹出去了。
+所以继续往前遍历的过程中，只要有一个数比y小，就可以返回true了
+
 #+begin_src python
   from typing import List
 
@@ -19,20 +23,13 @@ https://leetcode.cn/problems/132-pattern/description/
       def find132pattern(self, nums: List[int]) -> bool:
           if len(nums) < 3:
               return False
-          stack = [] # 单调增(Stack顶存放的是Stack中最小的数)
+          stack = []
           kValue = float('-inf')
           for _i in range(len(nums) - 1, -1, -1):
 
-              # 如果kValue的值是确定了的
-              # 那么一定有个nums[j]是存在的:
-              #     由下面的 while 语句确定了nums[j]与nums[k]的存在
               if nums[_i] < kValue:
                   return True
 
-              # 如果我以 nums[_i] 做为 题目中的 nums[j]
-              # 那么Stack中，从Stack中弹出所有比nums[_i]小的数
-              # 因为单调递增，那么最后一个弹出的数就是小于nums[_i]且最接近 nums[_i] 的数
-              # 也就是 nums[k] 与 nums[j] 是当前最接近的，也就给了nums[i]最大的空间
               while stack and stack[-1] < nums[_i]:
                   kValue = stack.pop()
 

@@ -1,0 +1,25 @@
+#+TITLE: 153. 寻找旋转排序数组中的最小值
+#+DATE: 2023-10-21 03:20:38
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Medium
+
+* Soluction
+#+begin_src python
+  from typing import List
+
+  class Solution:
+      def findMin(self, nums: List[int]) -> int:
+          n = len(nums)
+          left, right = 0, n - 1
+          while left < right:
+              mid = left + ((right - left) >> 1)
+              if nums[mid] > nums[right]:
+                  left = mid + 1
+              else:
+                  right = mid
+          return nums[left]
+#+end_src

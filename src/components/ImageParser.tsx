@@ -17,6 +17,7 @@ export default function ImageParser({link}: Props) {
       width: "80%",
       marginLeft: "auto",
       marginRight: "auto",
+      marginBottom: "10px",
     }}>
     <img src={link} style={{
       width: "100%",

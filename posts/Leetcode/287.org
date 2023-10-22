@@ -1,0 +1,34 @@
+#+TITLE: 287. 寻找重复数
+#+DATE: 2023-10-21 03:56:19
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Medium
+
+* Solution
+#+begin_src python
+  from typing import List
+
+  class Solution:
+      def findDuplicate(self, nums: List[int]) -> int:
+          # 初始化乌龟和兔子指针
+          tortoise = hare = nums[0]
+
+          # 第一阶段: 找到循环。设置兔子每次走两步，乌龟每次走一步，直到它们相遇
+          while True:
+              tortoise = nums[tortoise]
+              hare = nums[nums[hare]]
+              if tortoise == hare:
+                  break
+
+          # 第二阶段: 找到循环的起点。将乌龟重新设置为起点，保持兔子的位置，每次都移动一步，直到再次相遇
+          tortoise = nums[0]
+          while tortoise != hare:
+              tortoise = nums[tortoise]
+              hare = nums[hare]
+
+          # 由于存在重复数字，所以循环的起点就是重复数字
+          return hare
+#+end_src

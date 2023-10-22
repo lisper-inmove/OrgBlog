@@ -1,0 +1,45 @@
+#+TITLE: 113. 路径总和 II
+#+DATE: 2023-10-22 02:34:20
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Medium
+
+* Soluction
+#+begin_src python
+  from typing import Optional, List
+
+  class TreeNode:
+      def __init__(self, val=0, left=None, right=None):
+          self.val = val
+          self.left = left
+          self.right = right
+
+  class Solution:
+      def pathSum(self, root: Optional[TreeNode], targetSum: int) -> List[List[int]]:
+          if not root:
+              return []
+          if not root.left and not root.right and root.val == targetSum:
+              return [[root.val]]
+          left = self.pathSum(root.left, targetSum - root.val)
+          right = self.pathSum(root.right, targetSum - root.val)
+          # left 和 right 同时为空时，下面的表达式将返回 []，因为 无法执行for
+          return [[root.val] + path for path in left + right]
+
+      def pathSum2(self, root: Optional[TreeNode], targetSum: int) -> List[List[int]]:
+          if not root:
+              return []
+          stack = [(root, targetSum - root.val, [root.val])]
+          res = []
+          while stack:
+              node, curr_sum, path = stack.pop()
+              if not node.left and not node.right and curr_sum == 0:
+                  res.append(path)
+              if node.left:
+                  stack.append((node.left, curr_sum - node.left.val, path + [node.left.val]))
+              if node.right:
+                  stack.append((node.right, curr_sum - node.right.val, path + [node.right.val]))
+          return res
+#+end_src

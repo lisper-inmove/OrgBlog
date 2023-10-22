@@ -1,0 +1,45 @@
+#+TITLE: 81. 搜索旋转排序数组 II
+#+DATE: 2023-10-21 02:08:23
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+KEYWORDS: 二分
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Medium
+
+* Solution
+#+begin_src python
+  from typing import List
+
+  class Solution:
+      def search(self, nums: List[int], target: int) -> bool:
+          n = len(nums)
+          left, right = 0, n - 1
+          while left <= right:
+              mid = left + ((right - left) >> 1)
+              print(f"{left} {mid} {right} {nums[mid]} --> {nums[mid]} {nums[right]}");
+              v = nums[mid]
+              if (v == target):
+                  return True
+
+              # 去除重复部分
+              # 相比于33题，此题数字是可能重复，就会导致下面判断的时候出现问题
+              # 如，1,0,1,1,1 => 1, 0   1    1, 1，应该走 branch 1，如果不去重的话就会走到 branch 2
+              while left < mid and nums[left] == nums[mid]:
+                  left += 1
+
+              leftV, midV, rightV = nums[left], nums[mid], nums[right]
+              print(f"{leftV}, {midV}, {rightV}")
+              if leftV <= midV:  # 左边有序
+                  if leftV <= target < midV:
+                      right = mid - 1            # branch 1
+                  else:
+                      left = mid + 1             # branch 2
+              else:  # 右边有序
+                  if midV < target <= rightV:
+                      left = mid + 1             # branch 3
+                  else:
+                      right = mid - 1            # branch 4
+          return False
+#+end_src

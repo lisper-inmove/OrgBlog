@@ -1,0 +1,31 @@
+#+TITLE: 154. 寻找旋转排序数组中的最小值 II
+#+DATE: 2023-10-21 03:21:45
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Medium
+
+* Solution
+#+begin_src python
+  class Solution:
+      def findMin(self, nums: List[int]) -> int:
+          left, right = 0, len(nums) - 1
+
+          while left < right:
+              mid = left + ((right - left) >> 1)
+
+              # 如果中间元素大于右边的元素，说明最小值在右边部分
+              if nums[mid] > nums[right]:
+                  left = mid + 1
+              # 如果中间元素小于右边的元素，说明最小值在左边部分或就是中间元素
+              elif nums[mid] < nums[right]:
+                  right = mid
+              # 如果中间元素等于右边的元素，我们无法确定最小值在哪一边，但可以缩小搜索范围
+              else:
+                  right -= 1
+
+          return nums[left]
+
+#+end_src

@@ -8,6 +8,11 @@
 #+CATEGORIES: API网关
 
 * request-limit.lua
+
+使用openresty将用户进行限流。此处是根据用户的token进行限流
+
+https://github.com/openresty/lua-resty-limit-traffic
+
 #+begin_src lua
   local limit_req = require "resty.limit.req"
 
@@ -87,5 +92,17 @@
 
 
   }
+#+end_src
 
+#+begin_src conf
+  http {
+       ...
+       lua_shared_dict my_limit_req_store 10m;
+       ...
+  }
+#+end_src
+
+* 测试
+#+begin_src shell
+  http http://127.0.0.1:10101/ Authorization:"Bearer 11111111111"
 #+end_src

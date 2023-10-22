@@ -1,0 +1,49 @@
+#+TITLE: 116. 填充每个节点的下一个右侧节点指针
+#+DATE: 2023-10-22 09:55:02
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+SUBTITLE: 二叉树的层序遍历
+#+CATEGORIES: Leetcode
+#+DIFFICULTY: Medium
+
+* Solution
+#+begin_src python
+  from collections import deque
+  from typing import Optional
+
+
+  class Node:
+      def __init__(self, val: int = 0, left: 'Node' = None, right: 'Node' = None, next: 'Node' = None):
+          self.val = val
+          self.left = left
+          self.right = right
+          self.next = next
+
+  class Solution:
+
+      def connect(self, root: Optional[Node]) -> Optional[Node]:
+          if root is None:
+              return None
+          queue = deque()
+          queue.append(root)
+          guard = Node(-1)
+          while queue:
+              queue.append(guard)
+              prev = None
+              while True:
+                  node = queue.popleft()
+                  if node == guard:
+                      break
+                  if prev is None:
+                      prev = node
+                  else:
+                      prev.next = node
+                      prev = node
+                  if node.left:
+                      queue.append(node.left)
+                  if node.right:
+                      queue.append(node.right)
+          return root
+#+end_src
