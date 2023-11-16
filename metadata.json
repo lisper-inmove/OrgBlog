@@ -913,6 +913,17 @@
         "sort": 9999
     },
     {
+        "path": "posts/Linux/AtomicOperation.org",
+        "id": "cG9zdHMvTGludXgvQXRvbWljT3BlcmF0aW9uLm9yZw",
+        "title": "原子操作",
+        "categories": "Linux",
+        "date": "2023-11-07 23:18:18",
+        "keywords": "原子操作",
+        "difficulty": "",
+        "subtitle": "原子操作的几种实现方式: CAS 锁 事务内存",
+        "sort": 9999
+    },
+    {
         "path": "posts/Linux/SystemCalls.org",
         "id": "cG9zdHMvTGludXgvU3lzdGVtQ2FsbHMub3Jn",
         "title": "系统调用大全",

@@ -1,0 +1,313 @@
+#+TITLE: 原子操作
+#+DATE: 2023-11-07 23:18:18
+#+DISPLAY: t
+#+STARTUP: indent
+#+OPTIONS: toc:10
+#+AUTHOR: inmove
+#+SUBTITLE: 原子操作的几种实现方式: CAS 锁 事务内存
+#+KEYWORDS: 原子操作
+#+CATEGORIES: Linux
+
+* 什么是原子操作
+在多线程环境中，一个操作在执行过程中不会被其他线程干扰的操作，它是不可分割的，要么全部执行完成，要么就是没有执行，不会出现中间状态。
+避免了多个线程同时修改一个共享资源可能导致数据不一致的问题。
+
+它有几种常见的实现方式:
+1. CAS(Compare-And-Swap)，处理器提供特定的指令，需要硬件支持。这些指令能在单个指令周期内完成
+2. 锁，常见的互斥锁，自旋锁，读写锁等
+3. 事务内存，包括软件事物内存(STM) 和 硬件事务内存(HTM)。允许开发者将一系列操作作为一个事务来执行，这个事务要么完全执行，要么完全不执行。
+* CAS
+CAS是实现原子操作的一种常见方法，广泛用于多线程编程中的锁和无锁数据结构。CAS操作包括三个参数：内存位置（V），预期原值（E）和新值（N）。
+如果内存位置的值与预期原值相匹配，那么处理器将内存位置的值更新为新值。这个操作是原子的，意味着在更新值的过程中，不会有其他线程干扰这个过程。
+1. 读取当前值：首先读取内存位置V当前的值。
+2. 比较当前值与预期值：检查内存位置V的当前值是否等于预期值E。
+3. 条件性交换：
+  - 如果当前值等于预期值，处理器会自动将内存位置V的值更新为新值N。
+  - 如果当前值不等于预期值，操作失败，通常会返回当前值。
+4. 检查操作结果：操作成功，内存位置的值已被更新；操作失败，没有改变内存位置的值。
+** 原子类型
+1. atomic_flag: 保证原子的布尔标志操作。
+2. atomic_bool: 原子布尔类型。
+3. atomic_char, atomic_schar, atomic_uchar
+4. atomic_short, atomic_ushort
+5. atomic_int, atomic_uint:
+6. atomic_long, atomic_ulong, atomic_ullong
+7. atomic_char16_t, atomic_char32_t
+8. atomic_wchar_t: 原子宽字符
+9. atomic_int_least8_t, least16, least32, least64 fast8, fast16, fast32, fast64
+10. atomic_uint_least8_t
+11. atomic_intptr_t, atomic_uintptr_t, atomic_size_t, atomic_ptrdiff_t: 指针相关
+** 原子操作
+
+C11标准提供中，有以下原子操作:
+这里A代码原子类型，如atomic_int
+C代表存储在原子类型中的非原子类型，如int
+M表示用于修改原子对象的非原子类型
+memory_order为内存序，如memory_order_relaxed, memory_order_acquire, memory_order_release
+_explicit 后缀的版本，它允许指定内存序。
+
+1. 存储操作:
+   1. void atomic_store(volatile A* obj, C desired);
+   2. void atomic_store_explicit(volatile A* obj, C desired, memory_order order);
+2. 加载
+   1. C atomic_load(const volatile A* obj);
+   2. C atomic_load_explicit(const volatile A* obj, memory_order order);
+3. 增加
+   1. C atomic_fetch_add(volatile A* obj, M operand);
+   2. C atomic_fetch_add_explicit(volatile A* obj, M operand, memory_order order);
+4. 减少
+   1. C atomic_fetch_sub(volatile A* obj, M operand);
+   2. C atomic_fetch_sub_explicit(volatile A* obj, M operand, memory_order order);
+5. 位与
+   1. C atomic_fetch_and(volatile A* obj, M operand);
+   2. C atomic_fetch_and_explicit(volatile A* obj, M operand, memory_order order);
+6. 位或
+   1. C atomic_fetch_or(volatile A* obj, M operand);
+   2. C atomic_fetch_or_explicit(volatile A* obj, M operand, memory_order order);
+7. 位异或
+   1. C atomic_fetch_xor(volatile A* obj, M operand);
+   2. C atomic_fetch_xor_explicit(volatile A* obj, M operand, memory_order order);
+8. 交换
+   1. C atomic_exchange(volatile A* obj, C desired);
+   2. C atomic_exchange_explicit(volatile A* obj, C desired, memory_order order);
+9. 比较并交换
+   1. bool atomic_compare_exchange_strong(volatile A* obj, C* expected, C desired): 如果 obj指向的地址值等于 expected的值，就把它更新为 desired的值。
+   2. bool atomic_compare_exchange_weak(volatile A* obj, C* expected, C desired);
+      1. *atomic_compare_exchange_strong*: 函数在内存位置的当前值等于提供的预期值时尝试原子地更新该位置的值。如果比较成功，它就将新值写入内存位置，并返回 true。
+         如果比较失败，它将当前值写入预期值变量，并返回 false。这个函数的“强”性质意味着在没有干扰的情况下，它几乎不会报告假失败。
+      2. *atomic_compare_exchange_weak*: 在功能上与 atomic_compare_exchange_strong 相似，但它可能会在内存位置的值确实等于预期值的情况下报告失败。
+         这种假失败可能导致该操作在成功之前需要重试。因此，当使用这个函数时，通常会将其放在一个循环中。
+      3. 如果你的代码在一个循环中，并且你可以容忍偶尔的假失败，那么 atomic_compare_exchange_weak 可能会提供更好的性能，特别是在某些架构上。
+         如果你的更新操作只进行一次，或者你不能容忍假失败，那么你应该使用 atomic_compare_exchange_strong。
+   3. bool atomic_compare_exchange_strong_explicit(volatile A* obj, C* expected, C desired, memory_order success, memory_order failure);
+   4. bool atomic_compare_exchange_weak_explicit(volatile A* obj, C* expected, C desired, memory_order success, memory_order failure);
+
+
+** CAS的使用场景
+1. 计数器和指标：在并发环境中跟踪事件发生的次数，如网络连接数、完成的任务数或者系统中的错误次数。
+2. 状态标志：用于多线程程序中的状态检查，比如停止线程的运行标志。
+3. 锁的实现：在实现自旋锁或其他同步原语时，原子操作是保证锁状态一致性的关键。
+4. 无锁数据结构：在实现无锁队列、栈和其他数据结构时，原子变量用来保证数据结构的一致性，特别是在执行插入、删除等操作时。
+5. 资源管理：管理资源引用计数，如智能指针的实现中，确保多线程环境下资源被正确释放。
+6. 单例模式：在多线程环境下实现单例模式时，原子变量可以用来确保只创建一个实例。
+7. 信号量和屏障：在线程或进程同步时，原子变量可以用来实现信号量(semaphore)或屏障(barrier)。
+8. 任务分发：在工作窃取或任务分发模型中，原子变量用于分配任务给空闲线程，保证任务不会被多个线程获取。
+9. 内存管理：在自定义内存分配器中，原子变量用于管理内存块的分配和回收。
+10. 随机数生成：在并发环境中生成随机数时，原子操作可用于更新随机数生成器的状态，确保随机数序列的正确性。
+** CAS存在的一些问题
+1. ABA问题：如果一个变量从A变成B，然后又变回A，CAS操作将无法感知到这中间发生过变化，可能会导致错误的行为。解决这个问题的方法之一是使用版本号或“标记”来记录变量的更新次数。
+2. 循环重试：在高争用的环境中，CAS可能需要多次重试才能成功，这可能会导致性能问题。
+3. 饥饿：在某些情况下，一些线程可能会长时间等待成功执行CAS，尤其是在有线程优先级时。
+*** 原子引用计数解决ABA问题
+#+begin_src c
+  #include <stdatomic.h>
+  #include <stdbool.h>
+  #include <stdio.h>
+  #include <pthread.h>
+  #include <unistd.h>
+
+  #define NUM_THREADS 2
+
+  // 定义一个结构体，用来存储值和引用计数
+  typedef struct {
+      atomic_int value;
+      atomic_int ref_count;
+  } atomic_counted_value;
+
+  typedef struct {
+
+    atomic_counted_value *acv;
+    int value;
+
+  } thread_args;
+
+  // 初始化函数
+  void init_counted_value(atomic_counted_value *acv, int value) {
+      atomic_init(&acv->value, value);
+      atomic_init(&acv->ref_count, 0); // 初始引用计数设为0
+  }
+
+  // CAS操作，尝试更新值和引用计数
+  bool compare_and_swap(atomic_counted_value *acv, int expected_value, int new_value, int expected_count) {
+      pthread_t thread_id = pthread_self();
+      bool flag = false;
+      printf("%lu: rc: %d, ec: %d\n", thread_id, acv->ref_count, expected_count);
+      // 首先比较引用计数
+      if (atomic_load(&acv->ref_count) == expected_count) {
+          // 尝试原子地更新值
+          flag = atomic_compare_exchange_strong(&acv->value, &expected_value, new_value);
+      }
+      printf("%lu: flag: %d\n", thread_id, flag);
+      return flag;
+  }
+
+  // 更新函数，更新值并递增引用计数
+  void* update_value(void *arg) {
+      thread_args *args = (thread_args *)arg;
+      int old_value = atomic_load(&args->acv->value);
+      int old_count = atomic_load(&args->acv->ref_count);
+      bool flag = true;
+
+      // 尝试更新值和引用计数，直到成功为止
+      while (!(flag = compare_and_swap(args->acv, old_value, args->value, old_count))) {
+          old_value = atomic_load(&args->acv->value);
+          old_count = atomic_load(&args->acv->ref_count);
+      }
+
+      atomic_fetch_add(&args->acv->ref_count, 1);
+
+      return NULL;
+  }
+
+  int main() {
+      atomic_counted_value acv;
+      init_counted_value(&acv, 100); // 初始化值为100
+
+      // 更新值，应用原子引用计数
+      pthread_t threads[NUM_THREADS];
+      thread_args args = {&acv, 200};
+
+      for (int i = 0; i < NUM_THREADS; ++i) {
+          if (pthread_create(&threads[i], NULL, update_value, &args)) {
+              perror("Failed to create thread");
+              return 1;
+          }
+      }
+
+      for (int i = 0; i < NUM_THREADS; ++i) {
+          if (pthread_join(threads[i], NULL)) {
+              perror("Failed to join thread");
+              return 1;
+          }
+      }
+
+      printf("Value: %d, Ref Count: %d\n", atomic_load(&acv.value), atomic_load(&acv.ref_count));
+
+      return 0;
+  }
+#+end_src
+** 用CAS实现数字和
+
+这段代码表示用5个线程，分别对同一个变量加1000000次，在没有使用锁的情况下，始终能得到正确的答案。
+可以看到使用原子变量的方式比使用锁的方式要快3倍。
+
+#+begin_src c
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <pthread.h>
+  #include <stdatomic.h>
+  #include <time.h>
+
+  #define NUM_THREADS 5
+  #define NUM_INCREMENTS 1000000
+
+  atomic_int sharedInt = ATOMIC_VAR_INIT(0);
+
+  void* increment(void* arg) {
+      double cpu_time_used;
+      clock_t start = clock();
+      for (int i = 0; i < NUM_INCREMENTS; ++i) {
+          atomic_fetch_add(&sharedInt, 1);
+      }
+      clock_t end = clock();
+      cpu_time_used = ((double)(end - start)) / CLOCKS_PER_SEC;
+      printf("WithAtomic Consume Time: %f\n", cpu_time_used);
+      return NULL;
+  }
+
+  int main() {
+      pthread_t threads[NUM_THREADS];
+
+      for (int i = 0; i < NUM_THREADS; ++i) {
+          if (pthread_create(&threads[i], NULL, increment, NULL)) {
+              perror("Failed to create thread");
+              return 1;
+          }
+      }
+
+      for (int i = 0; i < NUM_THREADS; ++i) {
+          if (pthread_join(threads[i], NULL)) {
+              perror("Failed to join thread");
+              return 1;
+          }
+      }
+
+      printf("Final value of sharedInt: %d\n", sharedInt);
+      return 0;
+  }
+
+#+end_src
+#+begin_src shell
+  WithAtomic Consume Time: 0.240729
+  WithAtomic Consume Time: 0.244628
+  WithAtomic Consume Time: 0.258086
+  WithAtomic Consume Time: 0.268873
+  WithAtomic Consume Time: 0.272252
+  Final value of sharedInt: 5000000
+  ./WithAtomic  0.27s user 0.00s system 453% cpu 0.060 total
+
+#+end_src
+* 锁
+** 用锁实现数字和
+#+begin_src c
+  #include <stdio.h>
+  #include <stdlib.h>
+  #include <pthread.h>
+  #include <time.h>
+
+  #define NUM_THREADS 5
+  #define NUM_INCREMENTS 1000000
+
+  int sharedInt = 0;
+  pthread_mutex_t lock;
+
+  void* increment(void* arg) {
+      double cpu_time_used;
+      clock_t start = clock();
+      for (int i = 0; i < NUM_INCREMENTS; ++i) {
+          pthread_mutex_lock(&lock);
+          sharedInt++;
+          pthread_mutex_unlock(&lock);
+      }
+      clock_t end = clock();
+      cpu_time_used = ((double)(end - start)) / CLOCKS_PER_SEC;
+      printf("WithLock Consume Time: %f\n", cpu_time_used);
+      return NULL;
+  }
+
+  int main() {
+      pthread_t threads[NUM_THREADS];
+      pthread_mutex_init(&lock, NULL);
+
+      for (int i = 0; i < NUM_THREADS; ++i) {
+          if (pthread_create(&threads[i], NULL, increment, NULL)) {
+              perror("Failed to create thread");
+              return 1;
+          }
+      }
+
+      for (int i = 0; i < NUM_THREADS; ++i) {
+          if (pthread_join(threads[i], NULL)) {
+              perror("Failed to join thread");
+              return 1;
+          }
+      }
+
+      printf("Final value of sharedInt: %d\n", sharedInt);
+
+      pthread_mutex_destroy(&lock);
+      return 0;
+  }
+
+#+end_src
+
+#+begin_src shell
+  WithLock Consume Time: 0.559869
+  WithLock Consume Time: 0.611523
+  WithLock Consume Time: 0.618084
+  WithLock Consume Time: 0.620289
+  WithLock Consume Time: 0.621823
+  Final value of sharedInt: 5000000
+  ./WithLock  0.05s user 0.57s system 350% cpu 0.177 total
+
+#+end_src

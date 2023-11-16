@@ -48,7 +48,7 @@ export const Constants = {
 
   liTextColor: '#ffdeab',
   li2TextColor: '#afdeab',
-  li3TextColor: '#ffaeab',
+  li3TextColor: '#00ed41',
   li4TextColor: '#ffde0b',
   li5TextColor: '#0ad3ab',
   li6TextColor: '#fa03ab',
