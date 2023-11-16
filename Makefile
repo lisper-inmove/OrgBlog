@@ -22,3 +22,7 @@ restart-k8s: stop-k8s start-k8s
 
 reborn: build-docker restart-k8s
 	echo "Reborn Success"
+restart-docker:
+	sudo docker stop blog && \
+	sudo docker rm blog && \
+	sudo docker run -d --restart always --name blog -p 9527:3000 mh.com:8890/blog/blog:v1.0
